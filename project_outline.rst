@@ -21,8 +21,8 @@ Machine Learning on FPGAs
 * Convolutional Neural Network (CNN)
 * Recurrent Neural Network (RNN)
 * Binarized Neural Network (BNN)
-   * Full / Partial
-   * XNOR-Net
+  - Full / Partial
+  - XNOR-Net
 
 
 **Popular Designs**
@@ -91,40 +91,64 @@ Machine Learning on FPGAs
 * Local Response Normalization (LRN)
 * Classifiers: SoftMax
 * BNN Specific
-   * Batchnorm-activation
-   * Max-pooling using OR-operator
-   * Popcount for accumulation
-   * Matrix-Vector-Threshold Unit (MVTU)
+  - Batchnorm-activation
+  - Max-pooling using OR-operator
+  - Popcount for accumulation
+  - Matrix-Vector-Threshold Unit (MVTU)
 
 
-**Notes [5]**
+**Notes [5]: A Survey of FPGA-Based Neural Network Inference Accelerator**
 
 * FC and CONV layers typically consume more than 99% of the total used computation and storage resources.
 * Using SoCs, NN are typically implemented in the PL and controlled using the PS.
 * FPGAs are typically used for pre-trained inference NN. Can/should we use FPGAs for training too?
-* Increase performance: 
-   * More computation units: reduce unit size, reduce precision (may reduce accuracy)
-   * Increase utilization ratio: parallelism, time-multiplexing, efficient memory/ocm system and scheduling.
-   * Increase working frequency
-   * Sparsification: settings more wieghts to zero.
+* Increase performance:
+
+  - More computation units: reduce unit size, reduce precision (may reduce accuracy)
+  - Increase utilization ratio: parallelism, time-multiplexing, efficient memory/ocm system and scheduling.
+  - Increase working frequency
+  - Sparsification: settings more wieghts to zero.
+
 * Latency = (parallel inferences) / (system throughput)
 * Energy Efficiency = (operations) / (energy)
 * Compression:
-   * Searching a good network structure.
-   * Skipping layers at runtime.
-   * Quantization of weights and activations.
-   * Linear-quantization: nearest fixed-point representation (suffers over/under-flow).
-   * Non-linear-quantization: cluster weight values and assign to binary codes, potential for up to 16x model size compression with little or no loss in accuracy.
+
+  - Searching a good network structure.
+  - Skipping layers at runtime.
+  - Quantization of weights and activations.
+  - Linear-quantization: nearest fixed-point representation (suffers over/under-flow).
+  - Non-linear-quantization: cluster weight values and assign to binary codes, potential for up to 16x model size compression with little or no loss in accuracy.
+
 * Weight Reduction:
-   * Approximate weight matrix using low-rank representation (SVD) providing 4x improvement and <1% accuracy loss.
-   * Pruning: remove zero weights, apply L1 normalization to weights during training, up to 10x speed improvement.
+
+  - Approximate weight matrix using low-rank representation (SVD) providing 4x improvement and <1% accuracy loss.
+  - Pruning: remove zero weights, apply L1 normalization to weights during training, up to 10x speed improvement.
+
 * Hardware architecture design: computation unit level, loop unrolling level, system level
 * Computation units objective: small, more quantity, high clock rate
-   * Small CU using low bit-width
-   * Non-linear quantization: factorized coeff based dot product
-   * FC layers can use smaller bit-width than CONV layers while maintaining accuracy
-   * Using a single DSP for multiple low bit-width multiplications simultaneously
-   * 
+
+  - Small CU using low bit-width
+  - Non-linear quantization: factorized coeff based dot product
+  - FC layers can use smaller bit-width than CONV layers while maintaining accuracy
+  - Using a single DSP for multiple low bit-width multiplications simultaneously
+
+* Fast Convolution:
+
+  - Discrete Fourier Transformation (DFT) based fast convolution
+  - "block-wise circular constraint" converting multiplication in FC layers to 1D convolutions to be accelerated in frequency domain.
+  - Frequency domain methods require complex-number multiplication
+  - Winograd algorithm uses only real number multiplication
+
+* Frequency Optimization:
+
+  - Working frequency limited to routing between SRAM and DSP (700-900 MHz)
+  - Xilinx CHaiDNN-v2, xfDNN
+
+* Loop Unrolling:
+
+  - For increasing hardware utilization
+  - ESE architecture for sparse LSTM network acceleration
+  
 
 **Ideas**
 
@@ -138,3 +162,5 @@ Machine Learning on FPGAs
 3. `Fast inference of deep neural networks in FPGAs for particle physics <https://arxiv.org/pdf/1804.06913.pdf>`_
 4. `Toolflows for Mapping Convolutional Neural Networks on FPGAs: A Survey and Future Directions <http://delivery.acm.org/10.1145/3190000/3186332/a56-venieris.pdf?ip=104.172.28.204&id=3186332&acc=OA&key=4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E2972FD4B0DB409AC&__acm__=1570327531_2905a0d5a63758f18977c909ec032ed9>`_
 5. `A Survey of FPGA-Based Neural Network Inference Accelerator <https://arxiv.org/pdf/1712.08934.pdf>`_
+6. `Accelerating DNNs with Xilinx Alveo Accelerator Cards <https://www.xilinx.com/support/documentation/white_papers/wp504-accel-dnns.pdf>`_
+
