@@ -96,6 +96,22 @@ Machine Learning on FPGAs
   - Popcount for accumulation
   - Matrix-Vector-Threshold Unit (MVTU)
 
+Yellow: Key topics and related points
+Blue: Look into this further
+Orange: Directly applicable supporting information
+Green: Specific technical strategies
+
+**Notes [4]: Toolflows for Mapping CNNs on FPGAs: A Survey and Features**
+
+* Most applicable toolchains:
+
+  - DNNWEAVER
+  - HADDOC2 (No time-sharing / unrolling, thus too resource heavy)
+  - AutoCodeGen
+  - Deep-Burning
+  - Angel-Eye
+  - Snowflake
+
 
 **Notes [5]: A Survey of FPGA-Based Neural Network Inference Accelerator**
 
@@ -149,6 +165,36 @@ Machine Learning on FPGAs
   - For increasing hardware utilization
   - ESE architecture for sparse LSTM network acceleration
   
+* Roofline Model:
+
+  - The two primary limiting factors for NN accelerator designs are computation resources and off-chip memory bandwidth.
+  - Computation to communication (CTC) ratio
+
+* Loop Tiling and Interchange
+* Cross-Layer Scheduling
+* Regularize Data Access Patterns
+
+  - Regularize DDR access patterns to increase memory bandwidth using feature map formats such as NCHW or CHWN
+
+    + N: Batch dimension
+    + C: Channel dimension
+    + H, W: Feature map y and x dimension
+
+* Look into 6x6 Winograd fast convolution
+* FPGA vs. GPU
+
+  - Paper claims: Combining all the best techniques can theoretically provide 72TOP/s with 50W, 10x higher efficiency than 32-bit float equivalent design on a GPU.
+  - Techniques: double MAC, sparsification, quantization, fast convulution, double frequency design
+  - The main issues are incorporating all these techniques together in a single design and solving irregular data access patterns for sparse networks
+
+* Other proposed ideas:
+
+  - Depth-wise convolution
+  - complex branch in single shot [multi-box] detector (SSD)
+  - TVM uniform mapping optimization framework
+  - Instruction based methods of switching networks by loading new parameter data. Does not modify hardware
+  - Mixed methods
+
 
 **Ideas**
 
