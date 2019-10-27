@@ -27,32 +27,43 @@ use work.mypackage.ALL;
 
 entity convolution is
     Generic(
-        IMAGE_SIZE  := 6;
-        KERNEL_SIZE := 3
+        IMAGE_SIZE      : unsigned := 4;
+        KERNEL_SIZE     : unsigned := 2;
+        CHANNEL_COUNT   : unsigned := 3
         );
     Port (  
-        Aclk            : in std_logic;
-        Aresetn         : in std_logic;
-        --Input_Image     : in std_logic_vector(IMAGE_SIZE**2-1 downto 0);
-        Input_Image     : in ImageMatrix(0 to IMAGE_SIZE-1, 0 to IMAGE_SIZE-1);
-        --Kernel_Weights  : in std_logic_vector(KERNEL_SIZE**2-1 downto 0);
-        Kernel_Weights  : in KernalMatrix(0 to KERNEL_SIZE-1, 0 to KERNEL_SIZE-1);
-        --Feature_Map     : out std_logic_vector((IMAGE_SIZE-KERNEL_SIZE+1)**2-1 downto 0)
-        Feature_Map     : out ImageMatrix(0 to IMAGE_SIZE-KERNEL_SIZE, 0 to IMAGE_SIZE-KERNEL_SIZE)
+        Aclk            : in    std_logic;
+        Aresetn         : in    std_logic;
+        Input_Image     : in    GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
+        Kernel_Weights  : in    GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
+        Feature_Map     : out   GridType(1 to IMAGE_SIZE-KERNEL_SIZE+1, 1 to IMAGE_SIZE-KERNEL_SIZE+1, 1 to CHANNEL_COUNT)(15 downto 0)
         );
 end convolution;
 
 architecture Behavioral of convolution is
-    
+
 begin
 
     process(Aclk)
     begin
         if Aresetn = '0' then
-            Feature_Map <= (others => '0');
+            product <= (others => (others => '0'));
+            Feature_Map <= (others => (others => '0'));
         elsif rising_edge(Aclk) then
-            Input_Image
+            for row_iter in 1 to IMAGE_SIZE-KERNEL_SIZE+1 loop
+                for col_iter in 1 to IMAGE_SIZE-KERNEL_SIZE+1 loop
+                    for row in row_iter to KERNEL_SIZE+row_iter-1 loop
+                        for column in col_iter to KERNEL_SIZE+col_iter-1 loop
+                            for channel in 1 to CHANNEL_COUNT loop
+                                Feature_Map(row_iter,col_iter,channel) <= Feature_Map(row_iter,col_iter,channel) + (Input_Image(row,column,channel) * Kernel_Weights(row,column,channel));
+                            end loop;
+                        end loop;
+                    end loop;
+                end loop;
+            end loop;
         end if;
     end process;
 
 end Behavioral;
+
+
