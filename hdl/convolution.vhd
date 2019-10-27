@@ -27,9 +27,9 @@ use work.mypackage.ALL;
 
 entity convolution is
     Generic(
-        IMAGE_SIZE      : unsigned := 4;
-        KERNEL_SIZE     : unsigned := 2;
-        CHANNEL_COUNT   : unsigned := 3
+        IMAGE_SIZE      : natural := 4;
+        KERNEL_SIZE     : natural := 2;
+        CHANNEL_COUNT   : natural := 3
         );
     Port (  
         Aclk            : in    std_logic;
@@ -44,18 +44,23 @@ architecture Behavioral of convolution is
 
 begin
 
-    process(Aclk)
+    process(Aclk, Aresetn)
     begin
         if Aresetn = '0' then
-            product <= (others => (others => '0'));
-            Feature_Map <= (others => (others => '0'));
+            for i in Feature_Map'range(1) loop
+                for j in Feature_Map'range(2) loop
+                    for k in Feature_Map'range(3) loop
+                        Feature_Map(i,j,k) <= (others => '0');
+                    end loop;
+                end loop;
+            end loop;
         elsif rising_edge(Aclk) then
-            for row_iter in 1 to IMAGE_SIZE-KERNEL_SIZE+1 loop
-                for col_iter in 1 to IMAGE_SIZE-KERNEL_SIZE+1 loop
-                    for row in row_iter to KERNEL_SIZE+row_iter-1 loop
-                        for column in col_iter to KERNEL_SIZE+col_iter-1 loop
+            for row_iter in Feature_Map'range(1) loop
+                for col_iter in Feature_Map'range(2) loop
+                    for row in Kernel_Weights'range(1) loop
+                        for column in Kernel_Weights'range(2) loop
                             for channel in 1 to CHANNEL_COUNT loop
-                                Feature_Map(row_iter,col_iter,channel) <= Feature_Map(row_iter,col_iter,channel) + (Input_Image(row,column,channel) * Kernel_Weights(row,column,channel));
+                                Feature_Map(row_iter,col_iter,channel) <= Feature_Map(row_iter,col_iter,channel) + (Input_Image(row+row_iter-1,column+col_iter-1,channel) * Kernel_Weights(row,column,channel));
                             end loop;
                         end loop;
                     end loop;
