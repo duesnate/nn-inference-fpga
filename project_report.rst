@@ -15,8 +15,36 @@ The primary application of NN models covered in this effort will be for image re
 Due to the modular nature of a NN with all its independently functioning components, people have been able to construct generic modules that can scale in size, be re-ordered, and even be swapped out for others. These hardware description language (HDL) modules take in parameters pre-synthesis that are used to define compatible interfaces and desired functionality for a specific design. There already exists a number of tools capable of auto-generating HDL for realizing NN models in PL. Some tools require the user to describe the model in a higher level language while others don't require any programming at all. This is important since most software developers and scientists using ML in their work are not too familiar with HDL design. In addition, describing a NN design from scratch using HDL would be an arduous process even for an experienced digital designer. The development of these tool-flows and libraries is an important step forward in reducing the barrier to entry for FPGA use in ML applications. We will briefly explore the various tool-flows currently available that provide auto-generation of synthesizable code for building NN models.
 
 
-Components and Architecture
-===========================
+Components
+==========
+
+Convolutional Block
+-------------------
+
+Colored images consist of a grid of pixels where each pixel has three associated intensity values for red, green, and blue (RGB). Thus we we describe colored images as having three channels. It is common today for these color values to be 8-bits in size for each, which provides an intensity range from 0 to 255 for each color. All the different shades and colors we view on a screen are thus represented using 24-bits for each pixel. For example, a small 10x10 RGB image would have 100 pixels and the image would consist of 300 8-bit values. For machine learning, we describe these types of images as having three channels. You can visualize it as three grids, one for each color channel.
+
+The convolution operation consists primarily of the multiply-accumulate (MAC) operation. The trained weights of a CNN are realized using what is called a "kernel"; basically just a two-dimensional grid of weights. This grid of weights is superimposed upon a portion of the input image and is iteratively moved across the entire image. For each iterative location of the kernel, the image grid and kernel grid are elementwise multiplied with one another. The resulting product from each element is then summed together to produce a single output value for that iteration. For the next iteration the kernel is shifted over the image by one or more grid spaces (pixels) such that it covers a slightly different section of the input image. This process is repeated for the entire area of the image and will produce a new output grid of values which can be referred to as a "feature map". This feature map will then be available for the next layer in the NN design. 
+
+Implementing a convolution function in hardware is computationally expensive and will require a fair amount of processing resources. Convolution operations will typically consume the majority of the CPU/GPU processing time when working with CNN models. It is intuitive then that the convolution operations will occupy the majority of the utilized logic resources when implementing a CNN in an FPGA. 
+
+Break down conv fpga implementation design and resource usage. How are kernel weights loaded?
+
+Notice that convolutional blocks used in NN designs are for the most part all very similar if not identical. The only differences would be parameters such as input and kernel size as well as other settings such as zero padding widths and stride size. These blocks therefor have a high potential for modularity. A generic convolution block can be described in HDL just once and then be instantiated as many times as needed. By using generic inputs during instantiation, block parameters are determined pre-synthesis allowing for various types of convolutional operations. 
+Talk about the use of modularity. Instantiations of a generic convolutional block. How this can be used for auto-generation of HDL to describe a CNN.
+
+Discuss the proposed implementation architectures in other papers
+
+Pooling Block
+-------------
+
+Non-Linear Activation Block
+---------------------------
+
+Fully Connected Block
+---------------------
+
+Architecture
+============
 
 
 FPGA vs. GPU
