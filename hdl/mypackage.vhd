@@ -23,11 +23,11 @@ package mypackage is
             CHANNEL_COUNT   : natural := 3
             );
         Port (  
-            Aclk            : in    std_logic;
-            Aresetn         : in    std_logic;
-            Input_Image     : in    GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
-            Kernel_Weights  : in    GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
-            Feature_Map     : out   GridType(1 to IMAGE_SIZE-KERNEL_SIZE+1, 1 to IMAGE_SIZE-KERNEL_SIZE+1, 1 to CHANNEL_COUNT)(15 downto 0)
+            Aclk            : in std_logic;
+            Aresetn         : in std_logic;
+            Input_Image     : in std_logic_vector(8*IMAGE_SIZE**2-1 downto 0);
+            Kernel_Weights  : in std_logic_vector(8*KERNEL_SIZE**2-1 downto 0);
+            Feature_Map     : out std_logic_vector(16*(IMAGE_SIZE-KERNEL_SIZE+1)**2-1 downto 0)
             );
     end component;
 

@@ -199,6 +199,7 @@ Green: Specific technical strategies
 **Ideas**
 
 * Quantize multiplication weights by powers of 2 (binary shift)
+* Network with multiple (3?) multi-layer CNN designs that are then weighted and combined before the FC layers. Weights will vary with dependence related to the input. This allows an optimal CNN design to be used for the various input images. Think Kalman-filters.
 
 
 **References**
@@ -209,4 +210,6 @@ Green: Specific technical strategies
 4. `Toolflows for Mapping Convolutional Neural Networks on FPGAs: A Survey and Future Directions <http://delivery.acm.org/10.1145/3190000/3186332/a56-venieris.pdf?ip=104.172.28.204&id=3186332&acc=OA&key=4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E2972FD4B0DB409AC&__acm__=1570327531_2905a0d5a63758f18977c909ec032ed9>`_
 5. `A Survey of FPGA-Based Neural Network Inference Accelerator <https://arxiv.org/pdf/1712.08934.pdf>`_
 6. `Accelerating DNNs with Xilinx Alveo Accelerator Cards <https://www.xilinx.com/support/documentation/white_papers/wp504-accel-dnns.pdf>`_
+7. `A Survey of the Recent Architectures of Deep Convolutional Neural Networks <https://arxiv.org/pdf/1901.06032.pdf>`_
+
 

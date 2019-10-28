@@ -29,8 +29,7 @@ Implementing a convolution function in hardware is computationally expensive and
 
 Break down conv fpga implementation design and resource usage. How are kernel weights loaded?
 
-Notice that convolutional blocks used in NN designs are for the most part all very similar if not identical. The only differences would be parameters such as input and kernel size as well as other settings such as zero padding widths and stride size. These blocks therefor have a high potential for modularity. A generic convolution block can be described in HDL just once and then be instantiated as many times as needed. By using generic inputs during instantiation, block parameters are determined pre-synthesis allowing for different types of convolutional layers to be used throughout the model. By creating these generic operation blocks we can start to imagine simplified and abstracted methods for assembling NNs on an FPGA. Creating a model in programmable logic purely through hand written HDL would be arduous and repetative. Such a large portion of the physical design can be collapsed down into generic logical pieces reducing the number of lines of HDL code as well as the time spent for the designer. This DNN attribute of having a few basic building blocks that assemble together with different parameters in various configurations provides huge advantages in facilitating efficient design iterations. This is important since the majority of scientists and engineers that want to incorporate ML in their work do not have a strong programmable logic background or experience coding HDL. The steep learning curve - presented to those who seek to learn programmable logic for ML applications - proves to be a significant barrier to entry. For this reason FPGAs are not typically the first choice for DNN solutions. However, because of the high degree of DNN modularity that was previously discussed, this pattern could soon change. A surprisingly large number of frameworks have already been developed - mostly at research universities - which provide users with accesible design environments for PL implementations of CNNs without the need for handwritten HDL. These frameworks harness the inherent modularity of CNN blocks to provide users the capability of auto-generating a complete HDL description for the implementation of the desired model. 
-high cost of FPGAs
+Notice that convolutional blocks used in NN designs are for the most part all very similar if not identical. The only differences would be parameters such as input and kernel size as well as other settings such as zero padding widths and stride size. These blocks therefor have a high potential for modularity. A generic convolution block can be described in HDL just once and then be instantiated as many times as needed. By using generic inputs during instantiation, block parameters are determined pre-synthesis allowing for different types of convolutional layers to be used throughout the model. By creating these generic operation blocks we can start to imagine simplified and abstracted methods for assembling NNs on an FPGA. Creating a model in programmable logic purely through hand written HDL would be arduous and repetative. Such a large portion of the physical design can be collapsed down into generic logical pieces reducing the number of lines of HDL code as well as the time spent for the designer. This DNN attribute of having a few basic building blocks that assemble together with different parameters in various configurations provides huge advantages in facilitating efficient design iterations. This is important since the majority of scientists and engineers that want to incorporate ML in their work do not have a strong programmable logic background or experience coding HDL. The steep learning curve - presented to those who seek to learn programmable logic for ML applications - proves to be a significant barrier to entry. For this reason FPGAs are not typically the first choice for DNN solutions. However, because of the high degree of DNN modularity that was previously discussed, this pattern could soon change. A surprisingly large number of frameworks have already been developed - mostly through university research - which provide users with accesible design environments for PL implementations of CNNs without the need for handwritten HDL. These frameworks harness the inherent modularity of CNN blocks to provide users the capability of auto-generating a complete HDL description for the implementation of the desired model. The developer interface varies among the available frameworks but most frequently resorts to a high-level synthesis approach. Frameworks such as HADDOC2 and DnnWeaver provide compatibility with models developed using Caffe, a very popular DNN framework that uses a python interface. By addapting a framework that is already familiar in the deep learning (DL) community, these new tools are opening the doors of FPGA inference to a much broader spectrum of ML developers. 
 
 
 Talk about the use of modularity. Instantiations of a generic convolutional block. How this can be used for auto-generation of HDL to describe a CNN.
@@ -40,22 +39,40 @@ Discuss the proposed implementation architectures in other papers
 Pooling Block
 -------------
 
+Pooling layers are useful in CNN designs because they limit computational complexity while functioning to prevent overfitting. Pooling can be thought of as a process of down-sampling the feature map at the output of a convolutional layer. There are a number of different pooling functions that are used in CNN designs. Two very common common functions are average-pooling and max-pooling. As the name suggests, the pooling function moves across the range of the feature map and consolidates individual sections down to a single value. A typical example of a pooling operation is a 2x2 block that converts a four element section and reduces it to a single max or averaged value output. A 2x2 block that iterates over an 8x8 feature map without overlaps would effectively downsample the feature map to produce a 4x4 output thus cutting its dimensions in half [7].
+
+
 Non-Linear Activation Block
 ---------------------------
+
+The non-linear block implements an activation function for the primary purpose of introducing non-linearity to the CNN model. If a NN is not capable of utilizing non-linear properties then it will only be successful at modeling against a very basic set of data. The activation function is what unlocks the model's ability to train against the complex attributes we observe in the world around us. One of the most common and also perhaps the most simple of the available activation functions is the rectified linear unit, more simply referred to as the ReLU operator. There are a few adaptions of the ReLU operator being used today, but the most basic form of the rectified linear unit simply converts all negative inputs to zeros while leaving postive values unchanged.
+
 
 Fully Connected Block
 ---------------------
 
+The fully connected (FC) layer of a CNN is primarily used for classification at the final stage of the network model. Multiple FC layers can, however, be implemented throughout the model as hidden layers but will typically reside in the final few stages of the network. The number of neurons used in each layer can be adjusted during the design phase for optimizing performance. It is important to note though that the number of possible image classifications will determine the output size of the final FC layer. That is because each classification label will be assigned to an output neuron and whichever neuron is most favored will be used as the network prediction.
+
+
 Architecture
 ============
 
+Single Engine vs Streaming architectures [4]
 
 FPGA vs. GPU
 ============
 
 
-Techniques for Improved Efficiency
-==================================
+Techniques for Efficient Implementations
+========================================
+
+Data Quantization
+
+Loop Unrolling
+
+Time Multiplexing
+
+Weight Reduction (SVD)
 
 
 Available Toolflows
