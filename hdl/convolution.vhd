@@ -51,22 +51,16 @@ architecture Behavioral of convolution is
 begin
 
     process(Aclk, Aresetn)
-        variable var_feature : GridType(1 to FEATURE_SIZE, 1 to FEATURE_SIZE, 1 to CHANNEL_COUNT)(15 downto 0);
+        variable var_feature : GridType(Feature_Map_i'range(1), Feature_Map_i'range(2), 1 to CHANNEL_COUNT)(15 downto 0);
     begin
         var_feature := (others => (others => (others => (others => '0'))));
         if Aresetn = '0' then
-            for i in Feature_Map_i'range(1) loop
-                for j in Feature_Map_i'range(2) loop
-                    for k in Feature_Map_i'range(3) loop
-                        Feature_Map_i(i,j,k) <= (others => '0');
-                    end loop;
-                end loop;
-            end loop;
+            Feature_Map_i <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
             for row_iter in Feature_Map_i'range(1) loop
                 for col_iter in Feature_Map_i'range(2) loop
-                    for row in 1 to KERNEL_SIZE loop
-                        for column in 1 to KERNEL_SIZE loop
+                    for row in Kernel_Weights_i'range(1) loop
+                        for column in Kernel_Weights_i'range(2) loop
                             for channel in 1 to CHANNEL_COUNT loop
                                 var_feature(row_iter,col_iter,channel) := var_feature(row_iter,col_iter,channel) + (Input_Image_i(row+row_iter-1,column+col_iter-1,channel) * Kernel_Weights_i(row,column,channel));
                             end loop;
@@ -79,24 +73,24 @@ begin
     end process;
 
 
-    gen_image_row: for row in 1 to IMAGE_SIZE generate
-        gen_image_col: for column in 1 to IMAGE_SIZE generate
+    gen_image_row: for row in Input_Image_i'range(1) generate
+        gen_image_col: for column in Input_Image_i'range(2) generate
             gen_image_chan: for channel in 1 to CHANNEL_COUNT generate
                 Input_Image_i(row,column,channel) <= unsigned(Input_Image(8*(column+IMAGE_SIZE*(row-1))-1 downto 8*(column+IMAGE_SIZE*(row-1))-8));
             end generate gen_image_chan;
         end generate gen_image_col;
     end generate gen_image_row;
 
-    gen_kernel_row: for row in 1 to KERNEL_SIZE generate
-        gen_kernel_col: for column in 1 to KERNEL_SIZE generate
+    gen_kernel_row: for row in Kernel_Weights_i'range(1) generate
+        gen_kernel_col: for column in Kernel_Weights_i'range(2) generate
             gen_kernel_chan: for channel in 1 to CHANNEL_COUNT generate
                 Kernel_Weights_i(row,column,channel) <= unsigned(Kernel_Weights(8*(column+KERNEL_SIZE*(row-1))-1 downto 8*(column+KERNEL_SIZE*(row-1))-8));
             end generate gen_kernel_chan;
         end generate gen_kernel_col;
     end generate gen_kernel_row;
 
-    gen_feature_row: for row in 1 to FEATURE_SIZE generate
-        gen_feature_col: for column in 1 to FEATURE_SIZE generate
+    gen_feature_row: for row in Feature_Map_i'range(1) generate
+        gen_feature_col: for column in Feature_Map_i'range(2) generate
             gen_feature_chan: for channel in 1 to CHANNEL_COUNT generate
                 Feature_Map(16*(column+(FEATURE_SIZE)*(row-1))-1 downto 16*(column+(FEATURE_SIZE)*(row-1))-16) <= std_logic_vector(Feature_Map_i(row,column,channel));
             end generate gen_feature_chan;
