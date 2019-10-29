@@ -18,19 +18,34 @@ package mypackage is
 
     component convolution
         Generic(
-            IMAGE_SIZE      : natural := 4;
-            KERNEL_SIZE     : natural := 2;
+            IMAGE_SIZE      : natural := 6;
+            KERNEL_SIZE     : natural := 3;
             CHANNEL_COUNT   : natural := 3
-            );
+        );
+        Port (  
+            Aclk            : in std_logic;
+            Aresetn         : in std_logic;
+            Input_Image     : in GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
+            Kernel_Weights  : in GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
+            Feature_Map     : out GridType(1 to (IMAGE_SIZE-KERNEL_SIZE+1), 1 to (IMAGE_SIZE-KERNEL_SIZE+1), 1 to CHANNEL_COUNT)(15 downto 0)
+        );
+    end component;
+
+   component interface_conv
+        Generic(
+            IMAGE_SIZE      : natural := 6;
+            KERNEL_SIZE     : natural := 3;
+            CHANNEL_COUNT   : natural := 3
+        );
         Port (  
             Aclk            : in std_logic;
             Aresetn         : in std_logic;
             Input_Image     : in std_logic_vector(8*IMAGE_SIZE**2-1 downto 0);
             Kernel_Weights  : in std_logic_vector(8*KERNEL_SIZE**2-1 downto 0);
             Feature_Map     : out std_logic_vector(16*(IMAGE_SIZE-KERNEL_SIZE+1)**2-1 downto 0)
-            );
+        );
     end component;
-
+ 
     -- Functions
     subtype ByteVector is unsigned(7 downto 0);
     function get_rando (maxint, slvsize : positive) 
