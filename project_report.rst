@@ -11,7 +11,7 @@ Machine learning (ML) has drastically increased in popularity over the past deca
 
 The purpose of this project is to explore the topic of neural network inference using FPGAs. Unlike GPUs, FPGAs are dynamically configured at a lower hardware level and can be used for the purpose of accelerating specific tasks with unparalleled time-determinism. FPGAs can also be quickly reconfigured for changes in application. A relatively new concept called partial reconfiguration has also been introduced and provides the developer with the ability to reconfigure specified regions at runtime while the rest of the device continues in normal operation. Application specific acceleration engines can be intuitively described using behavioral HDL code while concurrently allowing the developer to closely manage synthesis at the register transfer level (RTL) if needed.
 
-The primary application of NN models in this project will be for image recognition and will focus primarily on the inference of convolutional neural networks (CNN). The first part of this report will summarize the current state of research and the advancements that have been made for FPGA inference. The project also seeks to determine whether FPGAs have potential to compete as an effective alternative to GPUs as well as to determine the characteristics of an effective use case. Metrics of evaluation include cost, peak performance capability, energy efficiency (or performance density), and other advantageous features such as adaptability. The report will break down the various components used in a typical CNN model and describe how they can be implemented in programmable logic (PL). These functional blocks include units for convolution, fully connected (FC) layers, pooling operations, and non-linear activation functions. Outside of the NN itself there will be additional PL infrastructure that may include direct memory access (DMA) cores, a state-machine or control unit (CU), as well as a memory-mapped interface to the processing system (PS). Additional supporting components may be included depending on the architectures used for implementing the model.
+The primary application of NN models in this project will be for image recognition and will focus primarily on the inference of convolutional neural networks (CNN). The first part of this report will summarize the current state of research and the advancements that have been made for FPGA inference. The project also seeks to determine whether FPGAs have potential to compete as an effective alternative to GPUs as well as to determine the characteristics of an effective use case. Metrics of evaluation include cost, peak performance capability, energy efficiency, performance density, as well as other advantageous features such as adaptability. The report will break down the various components used in a typical CNN model and describe how they can be implemented in programmable logic (PL). These functional blocks include units for convolution, fully connected (FC) layers, pooling operations, and non-linear activation functions. Outside of the NN itself there will be additional PL infrastructure that may include direct memory access (DMA) cores, a state-machine or control unit (CU), as well as a memory-mapped interface to the processing system (PS). Additional supporting components may be included depending on the architectures used for implementing the model.
 
 
 Components
@@ -53,8 +53,17 @@ Architecture
 
 By creating generic operational blocks we can start to imagine simplified and abstracted methods for assembling NNs on an FPGA. Creating a model in programmable logic purely through hand written HDL would be arduous and repetitive. Such a large portion of the physical design can be collapsed down into generic logical pieces, reducing the number of lines of HDL code and also reducing the time spent copying/pasting and reordering code slices for new iterations of the model design. This DNN attribute of having a few basic building blocks that assemble together with different parameters in various configurations provides huge advantages in facilitating efficient design iterations. This is important since the majority of scientists and engineers that want to incorporate ML in their work do not have a strong programmable logic background or experience coding HDL. The involved process and complex nature of FPGA/SoC design - apparent to those seeking out programmable logic solutions for ML applications - proves to be a significant barrier to entry. I speculate that it is partly for this reason that FPGAs are not the common choice for DNN solutions. However, because of the high degree of DNN modularity discussed, this market pattern could soon change. 
 
-* Single Engine Architecture
-* Streaming Architecture [4]
+Two broad categories of CNN architectures as stated in [Toolflows] include the streaming accelerator architecture and the single engine architecture. 
+
+**Streaming accelerator architectures** are characterized as having each of its layers individually instantiated in logic with parameters optimized for a specific model. Each layer will have data streaming out to the following operation while data from the preceeding stage will flow in. This happens for all layers concurrently such that utilization of the implemented resources is maximized. An advantage of the streaming approach is that feature data between operations does not require the use of off-chip memory access. This alleviates memory bandwidth while improving the achievable classification latency. 
+
+TODO: Add streaming architecture image
+
+**Single engine architectures**, as the name implies, take the form of a single powerful accelerated computation engine capable of executing each layer of the CNN model sequentially. This type of implementation can take on many variations but typically requires a control unit or finite-state machine (FSM) that moderates data-flow and schedules sequences of operation. The single engine will consist of an array of processing elements that support SIMD matrix operations for completing convolutions, non-linear functions, pooling and other required operations all in a single engine. One huge advantage of this approach is the potential for a single FPGA design to operate on many different model configurations and data sets without the need for re-programming. This allows for increased flexibility but at the cost of reduced resource utilization efficiency as well as consistency of performance results. Although simple models could get by with only on-chip memory (OCM) use, complex models will require significantly more access to off-chip memeory than a comparable streaming architecture. 
+
+TODO: Add single engine architecture image
+
+* Static vs. dynamic scheduling
 * ...
 
 FPGA vs. GPU
@@ -82,7 +91,11 @@ Due to the modular nature of a NN with its individual functional components, peo
 A surprisingly large number of frameworks have already been developed - mostly through university research - that provide users with accessible design frameworks for CNN implementations on PL without requiring custom handwritten HDL. These frameworks harness the inherent modularity of CNN blocks to provide users with the capability of auto-generating a complete HDL description that implements their desired model. The developer interface varies among the available frameworks but most frequently resorts to a high-level synthesis language approach. Frameworks such as HADDOC2 and DnnWeaver provide compatibility with models that have been developed with Caffe which is a very popular DNN framework with a python interface. By adapting a framework that is already familiar in the deep learning (DL) community, these tools are opening the doors for DNN inference on FPGAs to a broader spectrum of potential DNN developers. 
 
 * HADDOC2
+
 * DnnWeaver
+
+[DnnWeaver] employs an architecture most closely resembling the single engine architecture. The toolflow inputs DNN models that use the popular Caffe format. The developers of DnnWeaver created a macro dataflow instruction set architecture (ISA) so that the Caffe models can be parsed and stored as one or two 64-bit words. This model-derived instruction set - along with the target FPGA specs - is used to configure and connect an optimized combination of pre-designed hardware templates in order to realize the model. In addition, the ISA will generate a static process sequence schedule to orchestrate optimized dataflow. Memory access efficiency is optimized using computation slicing to allow for data-reuse. The algorithm seeks to create an effective balance between data-reuse and parallelization techniques. An optimized acceleration engine is then generated with embedded FSMs and microcodes based off the derived scheduler. According to the evaluation presented in [Toolflows], DnnWeaver achieves the highest portability rating for target FPGA devices. The tool excels in customization, modularity, and scalability but received lower scores in metrics that include optimization and performance density.
+
 * FINN
 * ...
 
@@ -210,6 +223,8 @@ TODO:
 Performance Evaluation
 ======================
 
+* Optimization
+* Performance Density
 
 Direction of Future Work
 ========================
