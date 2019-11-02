@@ -1,0 +1,11 @@
+hdl/*.o
+hdl/*.cf
+papers/
+*.pdf
+figs/
+dmount/
+vivado/
+zybo/
+papers/
+hdl/xil_defaultlib/
+
