@@ -29,7 +29,8 @@ entity convolution is
     Generic(
         IMAGE_SIZE      : natural := 6;
         KERNEL_SIZE     : natural := 3;
-        CHANNEL_COUNT   : natural := 3
+        CHANNEL_COUNT   : natural := 3;
+        GRADIENT_BITS   : natural := 8
     );
     Port (  
         Aclk            : in std_logic;
@@ -38,17 +39,17 @@ entity convolution is
             1 to IMAGE_SIZE, 
             1 to IMAGE_SIZE, 
             1 to CHANNEL_COUNT
-            ) (7 downto 0);
+            ) (GRADIENT_BITS-1 downto 0);
         Kernel_Weights  : in GridType(  
             1 to KERNEL_SIZE, 
             1 to KERNEL_SIZE, 
             1 to CHANNEL_COUNT
-            ) (7 downto 0);
+            ) (GRADIENT_BITS-1 downto 0);
         Feature_Map     : out GridType( 
             1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
             1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
             1 to CHANNEL_COUNT
-            ) (15 downto 0)
+            ) (2*GRADIENT_BITS-1 downto 0)
     );
 end convolution;
 
@@ -60,7 +61,7 @@ begin
             Feature_Map'range(1), 
             Feature_Map'range(2), 
             Feature_Map'range(3)
-            ) (15 downto 0);
+            ) (2*GRADIENT_BITS-1 downto 0);
     begin
         var_feature := (others => (others => (others => (others => '0'))));
         if Aresetn = '0' then
