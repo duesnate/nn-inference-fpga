@@ -162,7 +162,7 @@ Green: Specific technical strategies
 
 * Loop Unrolling:
 
-  - For increasing hardware utilization
+  - For increasing hardware utilization for 
   - ESE architecture for sparse LSTM network acceleration
   
 * Roofline Model:
@@ -211,5 +211,5 @@ Green: Specific technical strategies
 5. `A Survey of FPGA-Based Neural Network Inference Accelerator <https://arxiv.org/pdf/1712.08934.pdf>`_
 6. `Accelerating DNNs with Xilinx Alveo Accelerator Cards <https://www.xilinx.com/support/documentation/white_papers/wp504-accel-dnns.pdf>`_
 7. `A Survey of the Recent Architectures of Deep Convolutional Neural Networks <https://arxiv.org/pdf/1901.06032.pdf>`_
-
+8. `A guide to convolution arithmetic for deep learning <https://arxiv.org/pdf/1603.07285.pdf>`_
 

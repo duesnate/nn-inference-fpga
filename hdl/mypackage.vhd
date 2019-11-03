@@ -14,14 +14,28 @@ package mypackage is
             IMAGE_SIZE      : natural := 6;
             KERNEL_SIZE     : natural := 3;
             CHANNEL_COUNT   : natural := 3;
-            GRADIENT_BITS   : natural := 8
+            GRADIENT_BITS   : natural := 8;
+            STRIDE_STEPS    : natural := 1;
+            ZERO_PADDING    : integer := 0
         );
         Port (  
             Aclk            : in std_logic;
             Aresetn         : in std_logic;
-            Input_Image     : in GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT) (GRADIENT_BITS-1 downto 0);
-            Kernel_Weights  : in GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT) (GRADIENT_BITS-1 downto 0);
-            Feature_Map     : out GridType(1 to (IMAGE_SIZE-KERNEL_SIZE+1), 1 to (IMAGE_SIZE-KERNEL_SIZE+1), 1 to CHANNEL_COUNT) (2*GRADIENT_BITS-1 downto 0)
+            Input_Image     : in GridType(  
+                1 to IMAGE_SIZE,
+                1 to IMAGE_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0);
+            Kernel_Weights  : in GridType(  
+                1 to KERNEL_SIZE,
+                1 to KERNEL_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0);
+            Feature_Map     : out GridType( 
+                1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
+                1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
+                1 to CHANNEL_COUNT
+                ) (2*GRADIENT_BITS-1 downto 0)
         );
     end component;
 
@@ -30,14 +44,16 @@ package mypackage is
             IMAGE_SIZE      : natural := 6;
             KERNEL_SIZE     : natural := 3;
             CHANNEL_COUNT   : natural := 3;
-            GRADIENT_BITS   : natural := 8
+            GRADIENT_BITS   : natural := 8;
+            STRIDE_STEPS    : natural := 1;
+            ZERO_PADDING    : integer := 0
         );
         Port (  
             Aclk            : in std_logic;
             Aresetn         : in std_logic;
-            Input_Image     : in std_logic_vector(GRADIENT_BITS*IMAGE_SIZE**2-1 downto 0);
-            Kernel_Weights  : in std_logic_vector(GRADIENT_BITS*KERNEL_SIZE**2-1 downto 0);
-            Feature_Map     : out std_logic_vector(2*GRADIENT_BITS*(IMAGE_SIZE-KERNEL_SIZE+1)**2-1 downto 0)
+            Input_Image     : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*IMAGE_SIZE**2-1 downto 0);
+            Kernel_Weights  : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*KERNEL_SIZE**2-1 downto 0);
+            Feature_Map     : out std_logic_vector(2*GRADIENT_BITS*CHANNEL_COUNT*((IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1)**2-1 downto 0)
         );
     end component;
  

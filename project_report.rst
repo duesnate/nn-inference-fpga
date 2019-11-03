@@ -124,10 +124,11 @@ The goal of this convolution module design is to realize a highly modular and sc
 
 This module was designed as a fully loop-unrolled single-clock convolution accelerator. This means that a successful implementation run will process one full image (or feature map) input in just one clock cycle. If desired, all kernal weights can be updated for every image that is processed. The obvious drawback to this fully parallelized implementation is the high utilization of logic slice look-up tables (LUTs). Feasability and limitations of its full implementation including place-and-route is still under analysis.
 
+Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
+
 []
 TODO:
 
-* Value bit-width generic
 * Stride length capability w/ generic
 * Zero-padding capability w/ generic
 * Verify functionality through testbench simulation
