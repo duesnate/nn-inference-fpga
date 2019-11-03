@@ -68,9 +68,9 @@ begin
     gen_row: for row in Image_Padded'range(1) generate
         gen_col: for col in Image_Padded'range(2) generate
             gen_chl: for channel in Image_Padded'range(3) generate
-                gen_zp: if  (row > ZERO_PADDING) or 
-                            (col > ZERO_PADDING) or 
-                            (row <= Image_Padded'high(1)-ZERO_PADDING) or 
+                gen_zp: if  (row > ZERO_PADDING) and 
+                            (col > ZERO_PADDING) and 
+                            (row <= Image_Padded'high(1)-ZERO_PADDING) and 
                             (col <= Image_Padded'high(2)-ZERO_PADDING) generate
                     Image_Padded(row, col, channel) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, channel);
                 else generate
