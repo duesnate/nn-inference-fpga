@@ -57,11 +57,19 @@ Two broad categories of CNN architectures as stated in [Toolflows] include the s
 
 **Streaming accelerator architectures** are characterized as having each of its layers individually instantiated in logic with parameters optimized for a specific model. Each layer will have data streaming out to the following operation while data from the preceeding stage will flow in. This happens for all layers concurrently such that utilization of the implemented resources is maximized. An advantage of the streaming approach is that feature data between operations does not require the use of off-chip memory access. This alleviates memory bandwidth while improving the achievable classification latency. 
 
-TODO: Add streaming architecture image
+.. figure:: figs/streaming_architecture.png
+
+   Figure: Streaming Architecture Example
+
+
 
 **Single engine architectures**, as the name implies, take the form of a single powerful accelerated computation engine capable of executing each layer of the CNN model sequentially. This type of implementation can take on many variations but typically requires a control unit or finite-state machine (FSM) that moderates data-flow and schedules sequences of operation. The single engine will consist of an array of processing elements that support SIMD matrix operations for completing convolutions, non-linear functions, pooling and other required operations all in a single engine. One huge advantage of this approach is the potential for a single FPGA design to operate on many different model configurations and data sets without the need for re-programming. This allows for increased flexibility but at the cost of reduced resource utilization efficiency as well as consistency of performance results. Although simple models could get by with only on-chip memory (OCM) use, complex models will require significantly more access to off-chip memeory than a comparable streaming architecture. 
 
-TODO: Add single engine architecture image
+.. figure:: figs/single_engine_architecture.png
+
+   Figure: Single-Engine Architecture Example
+
+
 
 * Static vs. dynamic scheduling
 * ...
@@ -77,7 +85,22 @@ Although GPUs have been greatly beneficial for the advancement of DNN performanc
 Special Techniques for Efficient Implementations
 ================================================
 
-* Data Quantization
+**Data Quantization** is a technique that can provide a significant reduction in the required computation and memory resources as well as memory bandwidth. The extreme flexibility provided by FPGAs allows for customizing the data type and size to fit the application. CPUs and GPUs are designed with pre-determined precision. This means that on a 32-bit GPU, a small value operation that requires only 8-bit precision would still consume the full 32-bit operation resource. This inefficiency can be uniquely solved with the FPGA's ability to configure computation resouces using only the level of precision required. Many applications exist where high resolution computations do not provide measurable improvements in overall NN performance. In such cases, models can be implemented in FPGAs with reduced precision to provide benefits such as reduced power consumption, increased throughput, or additional resource and memory capacity for other operations. Take for example a model that inputs RGB images with 8-bit resolution per color channel. Using quantization, the 8-bit channel resolutions can be reduced down to 4-bits or even 2-bits to significantly reduce resource utilization. Alternatively, quantization could be applied to other image dimensions by reducing the pixel count or even through monochromatic conversion. In all cases, kernel weight parameters should be adjusted accordingly. Classification accuracy can be tested for each configuration to observe any degradation in performance.
+
+We evaluate the benefits of data quantization using an implementation of a fully unrolled convolution block; the design of this block is discussed later in the report. The convolution block was configured for single channel 3x3 inputs using 1-bit zero-padding and a 3x3 kernel to produce an output 3x3 feature map. Channel resolutions for both the image and kernel weights were adjusted for three seperate implementation runs. Resulting resource utilization is shown in the table below.
+
++------------+------+-------+-----------+-------------+
+| Resolution | LUTs | LUT % | Registers | Registers % |
++============+======+=======+===========+=============+
+| 8-bit      | 3974 | 100%  | 144       | 100%        |
++------------+------+-------+-----------+-------------+
+| 4-bit      | 1073 | 27%   | 72        | 50%         |
++------------+------+-------+-----------+-------------+
+| 2-bit      | 267  | 6.7%  | 36        | 25%         |
++------------+------+-------+-----------+-------------+
+
+The results of this test show significant savings in computation resource usage. Reducing bit-width from 8-bit to 4-bit provided a 73% reduction in LUTs and a 50% reduction in registers. Further quantization to 2-bit values provided a 93.3% reduction in LUTs and a 75% reduction in registers. It is evident that tremendous resource savings can be achieved using data quantization techniques. However, classification accuracy will need to be evaluated for the specific application to determine whether quantization is a viable option.
+
 * Loop Unrolling
 * Time Multiplexing
 * Weight Reduction (SVD)
@@ -129,8 +152,7 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
 []
 TODO:
 
-* Stride length capability w/ generic
-* Zero-padding capability w/ generic
+* Time multiplexing
 * Verify functionality through testbench simulation
 * Verify implementation functionality
 []
