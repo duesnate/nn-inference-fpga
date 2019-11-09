@@ -7,7 +7,7 @@ use IEEE.math_real.floor;
 
 package mypackage is
 
-    type GridType is array(natural range <>, natural range <>, natural range <>) of unsigned;
+    type GridType is array(natural range <>, natural range <>, natural range <>) of signed;
 
     component convolution
         Generic(
@@ -39,6 +39,28 @@ package mypackage is
         );
     end component;
 
+    component relu
+        Generic(
+            FEATURE_SIZE    : natural := 6;
+            CHANNEL_COUNT   : natural := 3;
+            GRADIENT_BITS   : natural := 8
+        );
+        Port (
+            Aclk            : in std_logic;
+            Aresetn         : in std_logic;
+            Input_Feature   : in GridType(
+                1 to FEATURE_SIZE,
+                1 to FEATURE_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0);
+            Output_Feature  : out GridType(
+                1 to FEATURE_SIZE,
+                1 to FEATURE_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0)
+        );
+    end component;
+
    component interface_conv
         Generic(
             IMAGE_SIZE      : natural := 6;
@@ -56,44 +78,58 @@ package mypackage is
             Feature_Map     : out std_logic_vector(2*GRADIENT_BITS*CHANNEL_COUNT*((IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1)**2-1 downto 0)
         );
     end component;
- 
-    -- Functions
-    subtype ByteVector is unsigned(7 downto 0);
-    function get_rando (maxint, slvsize : positive) 
-        return ByteVector;
 
-    function random_grid (maxint, slvsize : positive; input_grid : GridType)
-        return GridType;
+    component interface_relu
+        Generic(
+            FEATURE_SIZE      : natural := 6;
+            CHANNEL_COUNT   : natural := 3;
+            GRADIENT_BITS   : natural := 8
+        );
+        Port (  
+            Aclk            : in std_logic;
+            Aresetn         : in std_logic;
+            Input_Feature   : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0);
+            Output_Feature  : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0)
+        );
+    end component;
+ 
+    ---- Functions
+    --subtype ByteVector is unsigned(7 downto 0);
+    --function get_rando (maxint, slvsize : positive) 
+    --    return ByteVector;
+
+    --function random_grid (maxint, slvsize : positive; input_grid : GridType)
+    --    return GridType;
 
 end package mypackage;
 
 
-package body mypackage is
+--package body mypackage is
     
 
-    function get_rando (maxint, slvsize : positive) 
-        return ByteVector is
-        variable seed1, seed2 : positive := 1;
-        variable x : real;
-    begin
-        uniform(seed1,seed2,x);
-        return to_unsigned(integer(floor(x * Real(maxint))), slvsize);
-    end function get_rando;
+    --function get_rando (maxint, slvsize : positive) 
+    --    return ByteVector is
+    --    variable seed1, seed2 : positive := 1;
+    --    variable x : real;
+    --begin
+    --    uniform(seed1,seed2,x);
+    --    return to_unsigned(integer(floor(x * Real(maxint))), slvsize);
+    --end function get_rando;
 
 
-    function random_grid (maxint, slvsize : positive; input_grid : GridType)
-        return GridType is
-        variable return_grid : GridType(input_grid'range(1), input_grid'range(2), input_grid'range(3))(input_grid(1,1,1)'range);
-    begin
-        for i in input_grid'range(1) loop
-            for j in input_grid'range(2) loop
-                for k in input_grid'range(3) loop
-                    return_grid(i,j,k) := get_rando(maxint, slvsize);
-                end loop;
-            end loop;
-        end loop;
-        return return_grid;
-    end function random_grid;
+    --function random_grid (maxint, slvsize : positive; input_grid : GridType)
+    --    return GridType is
+    --    variable return_grid : GridType(input_grid'range(1), input_grid'range(2), input_grid'range(3))(input_grid(1,1,1)'range);
+    --begin
+    --    for i in input_grid'range(1) loop
+    --        for j in input_grid'range(2) loop
+    --            for k in input_grid'range(3) loop
+    --                return_grid(i,j,k) := get_rando(maxint, slvsize);
+    --            end loop;
+    --        end loop;
+    --    end loop;
+    --    return return_grid;
+    --end function random_grid;
 
 
-end package body mypackage;
+--end package body mypackage;

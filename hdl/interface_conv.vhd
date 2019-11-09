@@ -57,7 +57,7 @@ begin
         gen_image_col: for column in Input_Image_i'range(2) generate
             gen_image_chan: for channel in Input_Image_i'range(3) generate
                 Input_Image_i(row, column, channel) 
-                    <= unsigned(Input_Image((channel + ((column - 1) + (row - 1) * IMAGE_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
+                    <= signed(Input_Image((channel + ((column - 1) + (row - 1) * IMAGE_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
                                             (channel + ((column - 1) + (row - 1) * IMAGE_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS));
             end generate gen_image_chan;
         end generate gen_image_col;
@@ -67,7 +67,7 @@ begin
         gen_kernel_col: for column in Kernel_Weights_i'range(2) generate
             gen_kernel_chan: for channel in Kernel_Weights_i'range(3) generate
                 Kernel_Weights_i(row, column, channel) 
-                    <= unsigned(Kernel_Weights( (channel + ((column - 1) + (row - 1) * KERNEL_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
+                    <= signed(Kernel_Weights( (channel + ((column - 1) + (row - 1) * KERNEL_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
                                                 (channel + ((column - 1) + (row - 1) * KERNEL_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS));
             end generate gen_kernel_chan;
         end generate gen_kernel_col;
