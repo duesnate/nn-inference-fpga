@@ -10,61 +10,47 @@
 #include "xil_exception.h"
 #include "xil_cache.h"
 #include "xil_printf.h"
-#include "xemacps.h"        /* defines XEmacPs API */
+#include "xemacps.h"        // XEmacPs API
 #include "xscugic.h"
 #include "xil_exception.h"
-
-/************************** Constant Definitions *****************************/
-// EMAC
-#define EMACPS_DEVICE_ID    XPAR_XEMACPS_0_DEVICE_ID
-#define EMACPS_IRPT_INTR    XPS_GEM0_INT_ID
-#define EMACPS_SLCR_DIV_MASK    0xFC0FC0FF
-#define EMACPS_LOOPBACK_SPEED_1G 1000
-// Interrupts
-#define INTC_DEVICE_ID      XPAR_SCUGIC_SINGLE_DEVICE_ID
-// PHY
-#define PHY_DETECT_REG1 2
-#define PHY_DETECT_REG2 3
-#define PHY_REG0_1000           0x0140
-#define PHY_REG0_LOOPBACK       0x4000
-#define PHY_REG0_AUTONEGOTIATE  0x1000
-#define PHY_REG21_1000          0x0070
-// SLCR setting
-#define SLCR_LOCK_ADDR              (XPS_SYS_CTRL_BASEADDR + 0x4)
-#define SLCR_UNLOCK_ADDR            (XPS_SYS_CTRL_BASEADDR + 0x8)
-#define SLCR_GEM0_CLK_CTRL_ADDR     (XPS_SYS_CTRL_BASEADDR + 0x140)
-#define SLCR_GEM1_CLK_CTRL_ADDR     (XPS_SYS_CTRL_BASEADDR + 0x144)
-#define SLCR_LOCK_KEY_VALUE         0x767B
-#define SLCR_UNLOCK_KEY_VALUE       0xDF0D
-#define SLCR_ADDR_GEM_RST_CTRL      (XPS_SYS_CTRL_BASEADDR + 0x214)
-// Buffer Descriptor
-#define RXBD_CNT       32   // Number of RX BDs
-#define TXBD_CNT       32   // Number of TX BDs
-/************************** Struct Definitions ****************************/
+#include "../include/setup_eth.h"
+/************************** Constant Definitions ****************************/
+/************************** Struct Definitions ******************************/
 static XScuGic IntcInstance;
 XEmacPs EmacPsInstance;
 /************************** Variable Definitions ****************************/
 char EmacPsMAC[] = { 0x00, 0x0a, 0x35, 0x01, 0x02, 0x03 };
 u32 GemVersion;
-volatile s32 FramesTx;  // Frames sent
-volatile s32 FramesRx;  // Frames received
+volatile s32 FramesTx;      // Frames sent
+volatile s32 FramesRx;      // Frames received
+volatile s32 DeviceErrors;  // Error Count
 u8 bd_space[0x100000] __attribute__ ((aligned (0x100000)));
 u8 *RxBdSpacePtr;
 u8 *TxBdSpacePtr;
+u32 TxFrameLength;
+EthernetFrame TxFrame;      /* Transmit buffer */
+EthernetFrame RxFrame;      /* Receive buffer */
+/*************************** Function Prototypes ****************************/
+static void XEmacPsSendHandler(void *Callback);
+static void XEmacPsRecvHandler(void *Callback);
+static void XEmacPsErrorHandler(void *Callback, u8 Direction, u32 ErrorWord);
+u32 XEmacPsDetectPHY(XEmacPs * EmacPsInstancePtr);
+void EmacPsUtilFrameHdrFormatMAC(EthernetFrame * FramePtr, char *DestAddr);
+void EmacPsUtilFrameHdrFormatType(EthernetFrame * FramePtr, u16 FrameType);
+void EmacPsUtilFrameSetPayloadData(EthernetFrame * FramePtr, u32 PayloadSize);
+void EmacPsUtilFrameMemClear(EthernetFrame * FramePtr);
 /****************************************************************************/
 int main(void) {
-    LONG Status;
 
     EmacpsDelay(1);
     xil_printf("Starting...\r\n");
 
-    Status = Eth_Initialize(&IntcInstance, &EmacPsInstance, EMACPS_DEVICE_ID, EMACPS_IRPT_INTR);
+    Eth_Initialize(&IntcInstance, &EmacPsInstance, EMACPS_DEVICE_ID, EMACPS_IRPT_INTR);
 
     xil_printf("Ending...\r\n");
-    return XST_SUCCESS;
+    return 0;
 }
-
-
+/****************************************************************************/
 int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_id, u16 emac_intr_id) {
     // Define variables
     u32 ClkCntrl;
@@ -146,6 +132,10 @@ int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_
     XScuGic_Enable(intc_pointer, emac_intr_id);
     Xil_ExceptionEnable(); // Enable interrupts in PS
 
+    eth_send(emac_pointer);
+    // Disable interrupts
+    XScuGic_Disconnect(IntcInstancePtr, EmacPsIntrId);
+    return 0;
 }
 
 
@@ -199,4 +189,120 @@ u32 XEmacPsDetectPHY(XEmacPs * EmacPsInstancePtr) {
     }
     return PhyAddr; // default to 32(max of iteration)
 }
-
+/****************************************************************************/
+void EmacPsUtilFrameHdrFormatMAC(EthernetFrame * FramePtr, char *DestAddr) {
+    char *Frame = (char *) FramePtr;
+    char *SourceAddress = EmacPsMAC;
+    s32 Index;
+    // Destination address
+    for (Index = 0; Index < XEMACPS_MAC_ADDR_SIZE; Index++)
+        *Frame++ = *DestAddr++;
+    // Source address
+    for (Index = 0; Index < XEMACPS_MAC_ADDR_SIZE; Index++)
+        *Frame++ = *SourceAddress++;
+}
+/****************************************************************************/
+void EmacPsUtilFrameHdrFormatType(EthernetFrame * FramePtr, u16 FrameType) {
+    char *Frame = (char *) FramePtr;
+   //Increment to type field
+    Frame = Frame + 12;
+   //Do endian swap from little to big-endian.
+    FrameType = Xil_EndianSwap16(FrameType);
+   //Set the type
+    *(u16 *) Frame = FrameType;
+}
+/****************************************************************************/
+void EmacPsUtilFrameSetPayloadData(EthernetFrame * FramePtr, u32 PayloadSize) {
+    u32 BytesLeft = PayloadSize;
+    u8 *Frame;
+    u16 Counter = 0;
+    // Set the frame pointer to the start of the payload area
+    Frame = (u8 *) FramePtr + XEMACPS_HDR_SIZE;
+    // Insert 8 bit incrementing pattern
+    while (BytesLeft && (Counter < 256)) {
+        *Frame++ = (u8) Counter++;
+        BytesLeft--;
+    }
+    // Switch to 16 bit incrementing pattern
+    while (BytesLeft) {
+        *Frame++ = (u8) (Counter >> 8); /* high */
+        BytesLeft--;
+        if (!BytesLeft)
+            break;
+        *Frame++ = (u8) Counter++;  /* low */
+        BytesLeft--;
+    }
+}
+/****************************************************************************/
+void EmacPsUtilFrameMemClear(EthernetFrame * FramePtr) {
+    u32 *Data32Ptr = (u32 *) FramePtr;
+    u32 WordsLeft = sizeof(EthernetFrame) / sizeof(u32);
+    /* frame should be an integral number of words */
+    while (WordsLeft--)
+        *Data32Ptr++ = 0xDEADBEEF;
+}
+/****************************************************************************/
+int eth_send(XEmacPs * emac_pointer) {
+    u32 PayloadSize = 1000;
+    u32 NumRxBuf = 0;
+    u32 RxFrLen;
+    XEmacPs_Bd *Bd1Ptr;
+    XEmacPs_Bd *BdRxPtr;
+    FramesRx = 0;
+    FramesTx = 0;
+    DeviceErrors = 0;
+    TxFrameLength = XEMACPS_HDR_SIZE + PayloadSize;
+    // Setup packet to be transmitted
+    EmacPsUtilFrameHdrFormatMAC(&TxFrame, EmacPsMAC);
+    EmacPsUtilFrameHdrFormatType(&TxFrame, PayloadSize);
+    EmacPsUtilFrameSetPayloadData(&TxFrame, PayloadSize);
+    if (emac_pointer->Config.IsCacheCoherent == 0)
+        Xil_DCacheFlushRange((UINTPTR)&TxFrame, sizeof(EthernetFrame));
+    // Clear out receive packet memory area
+    EmacPsUtilFrameMemClear(&RxFrame);
+    if (emac_pointer->Config.IsCacheCoherent == 0)
+        Xil_DCacheFlushRange((UINTPTR)&RxFrame, sizeof(EthernetFrame));
+    // Allocate RxBDs since we do not know how many BDs will be used in advance, use RXBD_CNT here.
+    XEmacPs_BdRingAlloc(&(XEmacPs_GetRxRing(emac_pointer)), 1, &BdRxPtr);
+    // Setup the BD
+    XEmacPs_BdSetAddressRx(BdRxPtr, (UINTPTR)&RxFrame);
+    // Enqueue to HW
+    XEmacPs_BdRingToHw(&(XEmacPs_GetRxRing(emac_pointer)), 1, BdRxPtr);
+    // Allocate setup and enqueue 1 TX BD
+    XEmacPs_BdRingAlloc(&(XEmacPs_GetTxRing(emac_pointer)), 1, &Bd1Ptr);
+    // Setup first TX BD
+    XEmacPs_BdSetAddressTx(Bd1Ptr, (UINTPTR)&TxFrame);
+    XEmacPs_BdSetLength(Bd1Ptr, TxFrameLength);
+    XEmacPs_BdClearTxUsed(Bd1Ptr);
+    XEmacPs_BdSetLast(Bd1Ptr);
+    // Enqueue to HW
+    XEmacPs_BdRingToHw(&(XEmacPs_GetTxRing(emac_pointer)), 1, Bd1Ptr);
+    if (emac_pointer->Config.IsCacheCoherent == 0)
+        Xil_DCacheFlushRange((UINTPTR)Bd1Ptr, 64);
+    // Set the Queue pointers
+    XEmacPs_SetQueuePtr(emac_pointer, emac_pointer->RxBdRing.BaseBdAddr, 0, XEMACPS_RECV);
+    XEmacPs_SetQueuePtr(emac_pointer, emac_pointer->TxBdRing.BaseBdAddr, 0, XEMACPS_SEND);
+    // Start device
+    XEmacPs_Start(emac_pointer);
+    // Start TX
+    XEmacPs_Transmit(emac_pointer);
+    // Wait for TX complete
+    while (!FramesTx);
+    // Post process TX BDs
+    if (XEmacPs_BdRingFromHwTx(&(XEmacPs_GetTxRing(emac_pointer)), 1, &Bd1Ptr) == 0)
+        xil_printf("TxBDs were not ready for post processing\r\n");
+    // Free up BD
+    XEmacPs_BdRingFree(&(XEmacPs_GetTxRing(emac_pointer)), 1, Bd1Ptr);
+    // Wiat for RX indication
+    while (!FramesRx);
+    // Post process RX BDs
+    NumRxBuf = XEmacPs_BdRingFromHwRx(&(XEmacPs_GetRxRing(emac_pointer)), 1, &BdRxPtr);
+    if (0 == NumRxBuf)
+        EmacPsUtilErrorTrap("RxBD was not ready for post processing");
+    RxFrLen = XEmacPs_BdGetLength(BdRxPtr);
+    // Free RX BD
+    XEmacPs_BdRingFree(&(XEmacPs_GetRxRing(emac_pointer)), NumRxBuf, BdRxPtr);
+    // Stop device
+    XEmacPs_Stop(emac_pointer);
+    return 0;
+}
