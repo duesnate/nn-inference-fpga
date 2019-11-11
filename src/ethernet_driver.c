@@ -15,13 +15,12 @@
 #include "xscugic.h"
 #include "xil_exception.h"
 #include "sleep.h"
-#include "../include/setup_eth.h"
+#include "../include/ethernet_driver.h"
 /************************** Constant Definitions ****************************/
 /************************** Struct Definitions ******************************/
-static XScuGic IntcInstance;
-XEmacPs EmacPsInstance;
 /************************** Variable Definitions ****************************/
 char EmacPsMAC[] = { 0x00, 0x0a, 0x35, 0x01, 0x02, 0x03 };
+char DestMACAddr[] = {0x04, 0x92, 0x26, 0xd8, 0x17, 0xfc};
 u32 GemVersion;
 volatile s32 FramesTx;      // Frames sent
 volatile s32 FramesRx;      // Frames received
@@ -41,17 +40,6 @@ void EmacPsUtilFrameHdrFormatMAC(EthernetFrame * FramePtr, char *DestAddr);
 void EmacPsUtilFrameHdrFormatType(EthernetFrame * FramePtr, u16 FrameType);
 void EmacPsUtilFrameSetPayloadData(EthernetFrame * FramePtr, u32 PayloadSize);
 void EmacPsUtilFrameMemClear(EthernetFrame * FramePtr);
-/****************************************************************************/
-int main(void) {
-
-    sleep(1);
-    xil_printf("Starting...\r\n");
-
-    Eth_Initialize(&IntcInstance, &EmacPsInstance, EMACPS_DEVICE_ID, EMACPS_IRPT_INTR);
-
-    xil_printf("Ending...\r\n");
-    return 0;
-}
 /****************************************************************************/
 int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_id, u16 emac_intr_id) {
     // Define variables
@@ -134,7 +122,12 @@ int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_
     XScuGic_Enable(intc_pointer, emac_intr_id);
     Xil_ExceptionEnable(); // Enable interrupts in PS
 
-    eth_send(emac_pointer);
+    for (int i=0;i<10;i++) {
+        eth_send(emac_pointer);
+        sleep(1);
+    }
+    // Stop device
+    XEmacPs_Stop(emac_pointer);
     // Disable interrupts
     XScuGic_Disconnect(intc_pointer, emac_intr_id);
     return 0;
@@ -218,22 +211,23 @@ void EmacPsUtilFrameSetPayloadData(EthernetFrame * FramePtr, u32 PayloadSize) {
     u32 BytesLeft = PayloadSize;
     u8 *Frame;
     u16 Counter = 0;
+    char mymessage[] = "The primary application of NN models in this project will be for image recognition and will focus primarily";
     // Set the frame pointer to the start of the payload area
     Frame = (u8 *) FramePtr + XEMACPS_HDR_SIZE;
-    // Insert 8 bit incrementing pattern
-    while (BytesLeft && (Counter < 256)) {
-        *Frame++ = (u8) Counter++;
-        BytesLeft--;
-    }
-    // Switch to 16 bit incrementing pattern
-    while (BytesLeft) {
-        *Frame++ = (u8) (Counter >> 8); /* high */
-        BytesLeft--;
-        if (!BytesLeft)
-            break;
-        *Frame++ = (u8) Counter++;  /* low */
-        BytesLeft--;
-    }
+    memcpy(Frame, mymessage, sizeof(mymessage));
+    // // Insert 8 bit incrementing pattern
+    // while (BytesLeft && (Counter < 256)) {
+    //     *Frame++ = (u8) Counter++;
+    //     BytesLeft--;
+    // }
+    // // Switch to 16 bit incrementing pattern
+    // while (BytesLeft) {
+    //     *Frame++ = (u8) (Counter >> 8); /* high */
+    //     BytesLeft--;
+    //     if (!BytesLeft) break;
+    //     *Frame++ = (u8) Counter++;  /* low */
+    //     BytesLeft--;
+    // }
 }
 /****************************************************************************/
 void EmacPsUtilFrameMemClear(EthernetFrame * FramePtr) {
@@ -255,7 +249,7 @@ int eth_send(XEmacPs * emac_pointer) {
     DeviceErrors = 0;
     TxFrameLength = XEMACPS_HDR_SIZE + PayloadSize;
     // Setup packet to be transmitted
-    EmacPsUtilFrameHdrFormatMAC(&TxFrame, EmacPsMAC);
+    EmacPsUtilFrameHdrFormatMAC(&TxFrame, DestMACAddr);
     EmacPsUtilFrameHdrFormatType(&TxFrame, PayloadSize);
     EmacPsUtilFrameSetPayloadData(&TxFrame, PayloadSize);
     if (emac_pointer->Config.IsCacheCoherent == 0)
@@ -264,7 +258,7 @@ int eth_send(XEmacPs * emac_pointer) {
     EmacPsUtilFrameMemClear(&RxFrame);
     if (emac_pointer->Config.IsCacheCoherent == 0)
         Xil_DCacheFlushRange((UINTPTR)&RxFrame, sizeof(EthernetFrame));
-    // Allocate RxBDs since we do not know how many BDs will be used in advance, use RXBD_CNT here.
+    // Allocate RX BDs since we do not know how many BDs will be used in advance, use RXBD_CNT here.
     XEmacPs_BdRingAlloc(&(XEmacPs_GetRxRing(emac_pointer)), 1, &BdRxPtr);
     // Setup the BD
     XEmacPs_BdSetAddressRx(BdRxPtr, (UINTPTR)&RxFrame);
@@ -296,15 +290,13 @@ int eth_send(XEmacPs * emac_pointer) {
     // Free up BD
     XEmacPs_BdRingFree(&(XEmacPs_GetTxRing(emac_pointer)), 1, Bd1Ptr);
     // Wiat for RX indication
-    while (!FramesRx);
-    // Post process RX BDs
-    NumRxBuf = XEmacPs_BdRingFromHwRx(&(XEmacPs_GetRxRing(emac_pointer)), 1, &BdRxPtr);
-    if (0 == NumRxBuf)
-        xil_printf("ERROR: RxBD was not ready for post processing\r\n");
-    RxFrLen = XEmacPs_BdGetLength(BdRxPtr);
+    // while (!FramesRx);
+    // // Post process RX BDs
+    // NumRxBuf = XEmacPs_BdRingFromHwRx(&(XEmacPs_GetRxRing(emac_pointer)), 1, &BdRxPtr);
+    // if (0 == NumRxBuf)
+    //     xil_printf("ERROR: RxBD was not ready for post processing\r\n");
+    // RxFrLen = XEmacPs_BdGetLength(BdRxPtr);
     // Free RX BD
     XEmacPs_BdRingFree(&(XEmacPs_GetRxRing(emac_pointer)), NumRxBuf, BdRxPtr);
-    // Stop device
-    XEmacPs_Stop(emac_pointer);
     return 0;
 }

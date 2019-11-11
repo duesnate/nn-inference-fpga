@@ -1,7 +1,7 @@
 
 
-#ifndef SETUP_ETH
-#define SETUP_ETH
+#ifndef ETHERNET_DRIVER
+#define ETHERNET_DRIVER
 /************************** Constant Definitions *****************************/
 // EMAC
 #define EMACPS_DEVICE_ID    XPAR_XEMACPS_0_DEVICE_ID
@@ -35,4 +35,4 @@ typedef char EthernetFrame[XEMACPS_MAX_VLAN_FRAME_SIZE_JUMBO] __attribute__ ((al
 int eth_send(XEmacPs * emac_pointer);
 int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_id, u16 emac_intr_id);
 
-#endif // SETUP_ETH
+#endif // ETHERNET_DRIVER
