@@ -29,6 +29,9 @@
 #define RXBD_CNT       32   // Number of RX BDs
 #define TXBD_CNT       32   // Number of TX BDs
 
+/************************** Typedef Definitions *****************************/
+typedef char EthernetFrame[XEMACPS_MAX_VLAN_FRAME_SIZE_JUMBO] __attribute__ ((aligned(64)));
+
 int eth_send(XEmacPs * emac_pointer);
 int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_id, u16 emac_intr_id);
 

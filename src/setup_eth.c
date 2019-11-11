@@ -10,9 +10,11 @@
 #include "xil_exception.h"
 #include "xil_cache.h"
 #include "xil_printf.h"
+#include "xil_mmu.h"
 #include "xemacps.h"        // XEmacPs API
 #include "xscugic.h"
 #include "xil_exception.h"
+#include "sleep.h"
 #include "../include/setup_eth.h"
 /************************** Constant Definitions ****************************/
 /************************** Struct Definitions ******************************/
@@ -42,7 +44,7 @@ void EmacPsUtilFrameMemClear(EthernetFrame * FramePtr);
 /****************************************************************************/
 int main(void) {
 
-    EmacpsDelay(1);
+    sleep(1);
     xil_printf("Starting...\r\n");
 
     Eth_Initialize(&IntcInstance, &EmacPsInstance, EMACPS_DEVICE_ID, EMACPS_IRPT_INTR);
@@ -67,7 +69,7 @@ int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_
 
     emac_config = XEmacPs_LookupConfig(emac_dev_id);
     XEmacPs_CfgInitialize(emac_pointer, emac_config, emac_config->BaseAddress);
-    GemVersion = ((Xil_In32(Config->BaseAddress + 0xFC)) >> 16) & 0xFFF;
+    GemVersion = ((Xil_In32(emac_config->BaseAddress + 0xFC)) >> 16) & 0xFFF;
 
     // GEM0 1G clock configuration
     ClkCntrl = *(volatile unsigned int *)(SLCR_GEM0_CLK_CTRL_ADDR);
@@ -117,9 +119,9 @@ int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_
     XEmacPs_PhyRead(emac_pointer, PhyAddr, 1, &PhyReg1);
     xil_printf("Auto-negotiating");
     while (!(PhyReg1 & 0x0020))
-        XEmacPs_PhyRead(emac_pointer, PhyAddr, 1, &PhyReg1); xil_printf(".\r\n"); sleep(1);
+        {XEmacPs_PhyRead(emac_pointer, PhyAddr, 1, &PhyReg1); xil_printf(".\r\n"); sleep(1);}
     while (!(PhyReg1 & 0x0004))
-        XEmacPs_PhyRead(emac_pointer, PhyAddr, 1, &PhyReg1); xil_printf(".\r\n"); sleep(1);
+        {XEmacPs_PhyRead(emac_pointer, PhyAddr, 1, &PhyReg1); xil_printf(".\r\n"); sleep(1);}
     xil_printf("Link is Up\r\n");
     sleep(1);
     XEmacPs_SetOperatingSpeed(emac_pointer, EMACPS_LOOPBACK_SPEED_1G);
@@ -134,7 +136,7 @@ int Eth_Initialize(XScuGic * intc_pointer, XEmacPs * emac_pointer, u16 emac_dev_
 
     eth_send(emac_pointer);
     // Disable interrupts
-    XScuGic_Disconnect(IntcInstancePtr, EmacPsIntrId);
+    XScuGic_Disconnect(intc_pointer, emac_intr_id);
     return 0;
 }
 
@@ -298,7 +300,7 @@ int eth_send(XEmacPs * emac_pointer) {
     // Post process RX BDs
     NumRxBuf = XEmacPs_BdRingFromHwRx(&(XEmacPs_GetRxRing(emac_pointer)), 1, &BdRxPtr);
     if (0 == NumRxBuf)
-        EmacPsUtilErrorTrap("RxBD was not ready for post processing");
+        xil_printf("ERROR: RxBD was not ready for post processing\r\n");
     RxFrLen = XEmacPs_BdGetLength(BdRxPtr);
     // Free RX BD
     XEmacPs_BdRingFree(&(XEmacPs_GetRxRing(emac_pointer)), NumRxBuf, BdRxPtr);
