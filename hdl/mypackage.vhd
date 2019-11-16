@@ -61,7 +61,30 @@ package mypackage is
         );
     end component;
 
-   component interface_conv
+    component pooling
+        Generic(
+            FEATURE_SIZE    : natural := 6;
+            CHANNEL_COUNT   : natural := 3;
+            GRADIENT_BITS   : natural := 8;
+            POOL_SIZE       : natural := 2
+        );
+        Port (  
+            Aclk            : in std_logic;
+            Aresetn         : in std_logic;
+            Feature_In      : in GridType(  
+                1 to FEATURE_SIZE,
+                1 to FEATURE_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0);
+            Feature_Out     : out GridType( 
+                1 to FEATURE_SIZE/POOL_SIZE,
+                1 to FEATURE_SIZE/POOL_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0)
+        );
+    end component;
+
+    component interface_conv
         Generic(
             IMAGE_SIZE      : natural := 6;
             KERNEL_SIZE     : natural := 3;
@@ -93,6 +116,21 @@ package mypackage is
         );
     end component;
  
+    component interface_pool
+        Generic(
+            FEATURE_SIZE    : natural := 6;
+            CHANNEL_COUNT   : natural := 3;
+            GRADIENT_BITS   : natural := 8;
+            POOL_SIZE       : natural := 2
+        );
+        Port (
+            Aclk        : in std_logic;
+            Aresetn     : in std_logic;
+            Feature_In  : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0);
+            Feature_Out : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*(FEATURE_SIZE/POOL_SIZE)**2-1 downto 0)
+        );
+    end component;
+
     ---- Functions
     --subtype ByteVector is unsigned(7 downto 0);
     --function get_rando (maxint, slvsize : positive) 
