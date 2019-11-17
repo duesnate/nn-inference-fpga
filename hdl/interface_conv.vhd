@@ -39,7 +39,7 @@ entity interface_conv is
         Aresetn         : in std_logic;
         Input_Image     : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*IMAGE_SIZE**2-1 downto 0);
         Kernel_Weights  : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*KERNEL_SIZE**2-1 downto 0);
-        Feature_Map     : out std_logic_vector(2*GRADIENT_BITS*CHANNEL_COUNT*((IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1)**2-1 downto 0)
+        Feature_Map     : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*((IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1)**2-1 downto 0)
     );
 end interface_conv;
 
@@ -49,7 +49,7 @@ architecture Behavioral of interface_conv is
     
     signal Input_Image_i    : GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT) (GRADIENT_BITS-1 downto 0);
     signal Kernel_Weights_i : GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT) (GRADIENT_BITS-1 downto 0);
-    signal Feature_Map_i    : GridType(1 to FEATURE_SIZE, 1 to FEATURE_SIZE, 1 to CHANNEL_COUNT) (2*GRADIENT_BITS-1 downto 0);
+    signal Feature_Map_i    : GridType(1 to FEATURE_SIZE, 1 to FEATURE_SIZE, 1 to CHANNEL_COUNT) (GRADIENT_BITS-1 downto 0);
 
 begin
 
@@ -76,8 +76,8 @@ begin
     gen_feature_row: for row in Feature_Map_i'range(1) generate
         gen_feature_col: for column in Feature_Map_i'range(2) generate
             gen_feature_chan: for channel in Feature_Map_i'range(3) generate
-                Feature_Map(2 * (channel + ((column - 1) + (row - 1) * FEATURE_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
-                            2 * (channel + ((column - 1) + (row - 1) * FEATURE_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS)
+                Feature_Map((channel + ((column - 1) + (row - 1) * FEATURE_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
+                            (channel + ((column - 1) + (row - 1) * FEATURE_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS)
                     <= std_logic_vector(Feature_Map_i(row, column, channel));
             end generate gen_feature_chan;
         end generate gen_feature_col;

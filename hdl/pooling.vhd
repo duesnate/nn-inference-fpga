@@ -61,10 +61,10 @@ begin
             for row in Feature_Out'range(1) loop
                 for col in Feature_Out'range(2) loop
                     for channel in Feature_Out'range(3) loop
-                        ------------------MAX--------------------
-                        max_val := (GRADIENT_BITS-1 => '1', others => '0');
-                        for ri in (row-1)*POOL_SIZE+1 to row*POOL_SIZE loop
-                            for ci in (col-1)*POOL_SIZE+1 to col*POOL_SIZE loop
+                        ---------------MAX FUNCTION--------------
+                        max_val := (max_val'high => '1', others => '0');
+                        for ri in (row - 1) * POOL_SIZE + 1 to row * POOL_SIZE loop
+                            for ci in (col - 1) * POOL_SIZE + 1 to col * POOL_SIZE loop
                                 if Feature_In(ri, ci, channel) > max_val then
                                     max_val := Feature_In(ri, ci, channel);
                                 end if;
