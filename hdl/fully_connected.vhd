@@ -49,16 +49,15 @@ architecture Behavioral of fully_connected is
     constant NEURON_MAX : integer := 2**(GRADIENT_BITS - 1) - 1;
     constant NEURON_MIN : integer := -1 * 2**(GRADIENT_BITS - 1);
 
-    signal neuron_scaled : signed(GRADIENT_BITS downto 0);
-
 begin
 
     process(Aclk, Aresetn)
-        variable neuron_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
+        variable neuron_sum     : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
+        variable neuron_scaled  : signed(GRADIENT_BITS downto 0);
     begin
         if Aresetn = '0' then
             Neuron_Out <= (others => '0');
-            neuron_scaled <= (others => '0');
+            neuron_scaled := (others => '0');
         elsif rising_edge(Aclk) then
             for neuron in 1 to NEURON_COUNT loop
                 -- Clear summation
@@ -79,7 +78,7 @@ begin
                     end loop;
                 end loop;
                 -- Scale Down Results and Add Bias
-                neuron_scaled <= neuron_sum(neuron_sum'high downto neuron_sum'high - GRADIENT_BITS + 1)
+                neuron_scaled := neuron_sum(neuron_sum'high downto neuron_sum'high - GRADIENT_BITS + 1)
                     + resize(signed(Bias(neuron * GRADIENT_BITS - 1 downto (neuron - 1) * GRADIENT_BITS)), GRADIENT_BITS + 1);
                 -- Prevent Overflow / Underflow
                 if to_integer(neuron_scaled) > NEURON_MAX then
