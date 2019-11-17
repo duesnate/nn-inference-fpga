@@ -45,7 +45,7 @@ The non-linear block implements an activation function for the primary purpose o
 Fully Connected Block
 ---------------------
 
-The fully connected (FC) layer of a CNN is primarily used for classification at the final stage of the network model. Multiple FC layers can, however, be implemented throughout the model as hidden layers but will typically reside in the final few stages of the network. The number of neurons used in each layer can be adjusted during the design phase for optimizing performance. It is important to note though that the number of possible image classifications will determine the output size of the final FC layer. That is because each classification label will be assigned to an output neuron and whichever neuron is most favored will be used as the network prediction.
+The fully connected (FC) layer of a CNN is primarily used for classification at the final stage of the network model. Multiple FC layers can, however, be implemented throughout the model as hidden layers but will typically reside in the final few stages of the network. The number of neurons used in each layer can be adjusted during the design phase for optimizing performance. It is important to note though that the number of possible image classifications will determine the output size of the final FC layer. That is because each classification label will be assigned to an output neuron and whichever neuron is most favored will be used as the network's prediction.
 
 
 Architecture
