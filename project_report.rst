@@ -29,7 +29,6 @@ Implementing a convolution function in hardware is computationally expensive and
 Notice that convolutional blocks used in NN designs are for the most part all very similar if not identical. The only differences would be parameters such as input and kernel size as well as other settings such as zero padding widths and stride size. These blocks have a high potential for modularity. A generic convolution block can be described in HDL once and then instantiated as many times as needed. By using generic inputs during instantiation, block parameters are determined pre-synthesis allowing for different types of convolutional layers to be implemented throughout the model. 
 
 
-
 Pooling Block
 -------------
 
@@ -45,7 +44,7 @@ The non-linear block implements an activation function for the primary purpose o
 Fully Connected Block
 ---------------------
 
-The fully connected (FC) layer of a CNN is primarily used for classification at the final stage of the network model. Multiple FC layers can, however, be implemented throughout the model as hidden layers but will typically reside in the final few stages of the network. The number of neurons used in each layer can be adjusted during the design phase for optimizing performance. It is important to note though that the number of possible image classifications will determine the output size of the final FC layer. That is because each classification label will be assigned to an output neuron and whichever neuron is most favored will be used as the network's prediction.
+The fully connected (FC) layer of a CNN is primarily used for classification at the final stage of the network model. Multiple FC layers can, however, be implemented throughout the model as hidden layers but will typically reside in the final stages of the network. The number of neurons used in each hidden layer can be adjusted during the design phase for optimizing performance. It is important to note though that the number of possible image classifications will determine the output size of the final FC layer. Each classification label will be assigned to an output neuron and whichever neuron is most favored will be used as the network's prediction. 
 
 
 Architecture
@@ -61,14 +60,11 @@ Two broad categories of CNN architectures as stated in [Toolflows] include the s
 
    Figure: Streaming Architecture Example
 
-
-
 **Single engine architectures**, as the name implies, take the form of a single powerful accelerated computation engine capable of executing each layer of the CNN model sequentially. This type of implementation can take on many variations but typically requires a control unit or finite-state machine (FSM) that moderates data-flow and schedules sequences of operation. The single engine will consist of an array of processing elements that support SIMD matrix operations for completing convolutions, non-linear functions, pooling and other required operations all in a single engine. One huge advantage of this approach is the potential for a single FPGA design to operate on many different model configurations and data sets without the need for re-programming. This allows for increased flexibility but at the cost of reduced resource utilization efficiency as well as consistency of performance results. Although simple models could get by with only on-chip memory (OCM) use, complex models will require significantly more access to off-chip memeory than a comparable streaming architecture. 
 
 .. figure:: figs/single_engine_architecture.png
 
    Figure: Single-Engine Architecture Example
-
 
 
 * Static vs. dynamic scheduling
@@ -82,28 +78,40 @@ Although GPUs have been greatly beneficial for the advancement of DNN performanc
 * ...
 
 
-Special Techniques for Efficient Implementations
-================================================
+Techniques for Efficient Implementations
+========================================
 
 **Data Quantization** is a technique that can provide a significant reduction in the required computation and memory resources as well as memory bandwidth. The extreme flexibility provided by FPGAs allows for customizing the data type and size to fit the application. CPUs and GPUs are designed with pre-determined precision. This means that on a 32-bit GPU, a small value operation that requires only 8-bit precision would still consume the full 32-bit operation resource. This inefficiency can be uniquely solved with the FPGA's ability to configure computation resouces using only the level of precision required. Many applications exist where high resolution computations do not provide measurable improvements in overall NN performance. In such cases, models can be implemented in FPGAs with reduced precision to provide benefits such as reduced power consumption, increased throughput, or additional resource and memory capacity for other operations. Take for example a model that inputs RGB images with 8-bit resolution per color channel. Using quantization, the 8-bit channel resolutions can be reduced down to 4-bits or even 2-bits to significantly reduce resource utilization. Alternatively, quantization could be applied to other image dimensions by reducing the pixel count or even through monochromatic conversion. In all cases, kernel weight parameters should be adjusted accordingly. Classification accuracy can be tested for each configuration to observe any degradation in performance.
 
 We evaluate the benefits of data quantization using an implementation of a fully unrolled convolution block; the design of this block is discussed later in the report. The convolution block was configured for single channel 3x3 inputs using 1-bit zero-padding and a 3x3 kernel to produce an output 3x3 feature map. Channel resolutions for both the image and kernel weights were adjusted for three seperate implementation runs. Resulting resource utilization is shown in the table below.
 
-+------------+------+-------+-----------+-------------+
-| Resolution | LUTs | LUT % | Registers | Registers % |
-+============+======+=======+===========+=============+
-| 8-bit      | 3974 | 100%  | 144       | 100%        |
-+------------+------+-------+-----------+-------------+
-| 4-bit      | 1073 | 27%   | 72        | 50%         |
-+------------+------+-------+-----------+-------------+
-| 2-bit      | 267  | 6.7%  | 36        | 25%         |
-+------------+------+-------+-----------+-------------+
++------------+------+------------------+-----------+-------------+
+| Resolution | LUTs | LUT %            | Registers | Registers % |
++============+======+==================+===========+=============+
+| 8-bit      | 3974 | Reference (100%) | 144       | 100%        |
++------------+------+------------------+-----------+-------------+
+| 4-bit      | 1073 | 27%              | 72        | 50%         |
++------------+------+------------------+-----------+-------------+
+| 2-bit      | 267  | 6.7%             | 36        | 25%         |
++------------+------+------------------+-----------+-------------+
 
-The results of this test show significant savings in computation resource usage. Reducing bit-width from 8-bit to 4-bit provided a 73% reduction in LUTs and a 50% reduction in registers. Further quantization to 2-bit values provided a 93.3% reduction in LUTs and a 75% reduction in registers. It is evident that tremendous resource savings can be achieved using data quantization techniques. However, classification accuracy will need to be evaluated for the specific application to determine whether quantization is a viable option.
+The results of this test show significant savings in computation resource usage. Reducing bit-width from 8-bit to 4-bit provided a 73% reduction in LUTs and a 50% reduction in registers. Further quantization to 2-bit values provided a total of 93.3% reduction in LUTs and a 75% reduction in registers. It is evident that tremendous resource savings can be achieved using data quantization techniques. However, classification accuracy will need to be evaluated for the specific application to determine whether quantization is a viable option.
+
+**Binerized Neural Networks (BNN)** take data quantization to the extreme by reducing bit-widths to the minimum necessary. Fully binarized networks use single-bit values for both input and output activations as well for weights. FPGAs are especially well suited for optimizing these custom-type implementations given their ability to configure logic to use only the precision required. FINN is an open-source BNN tool developed by Xilinx Research Labs [ref] that is capable of implementing both fully and partially binarized neural networks. Given the extreme level of quantization and resource savings, results have demonstrated impressive classification accuracy. More impressive, however, is the extremely high throughput and low latency that can be realized (see table). Their results demonstrate the potential efficiency of BNNs on FPGAs but also highlights the limited accuracy that is achieved for larger input images. By reducing activations and weights to single bit values, common CNN operations become much less expensive.  
+
++----------+----------------------------+---------+----------+
+| Dataset  | Throughput (Images/Second) | Latency | Accuracy |
++==========+============================+=========+==========+
+| MNIST    | 12.3 million               | 0.31 us | 95.8%    |
++----------+----------------------------+---------+----------+
+| CIFAR-10 | 21906                      | 283 us  | 80.1%    |
++----------+----------------------------+---------+----------+
+
+
 
 **Loop Unrolling** is a technique that has potential to both decrease a model's latency as well as increase its throughput capacity. Loop unrolling is what allows a design to capitalize on what FPGAs have been known to excel at. That is parallel processing. As previously discussed, CNN models are primarily composed of SIMD type operations where a benefit can be realized by instantiating many processing elements - such as MACs - in parallel. This is possible because convolution operations do not require an extensive number of calculations that need to execute in a specific sequence. In other words, the output of one MAC operation in a convolutional layer does not need to be made available to another MAC in that same layer. As is demonstrated later in this report, each of the popular CNN layers (convolution, activation, pooling...etc) can theoretically be executed in just a single clock cycle. Although the idea of classifying millions of images every second is exciting, there are two primary restraints when attempting to unroll a model. First is the apparent limitation of available logic resources on an FPGA. A fully unrolled layer such as convolution will easily consume a large fraction of the available logic depending on the dimensions of the input image. The second restraint is timing closure. A large convolution kernel will require the summation of many multiplier products. All these multiply and adder circuits will need to resolve before the arrival of the following clock edge which will lock the final result into a register. If the propogation delays are too long or the clock is too fast, an implementated design will fail timing and the clock will register erroneous data. 
 
-**Time Multiplexing** is in a way the opposite of loop unrolling. It is the sharing of a computational resource among multiple operations that are executed during different time intervals. This technique can be used to optimize resource utilization when certain processes are not required to run all the time. For exmaple, let us say operation A generates a result - that is required as an input to operation B - once every 50 clock cycles. Once operation B consumes that result it takes only 10 clocks to finish its calculation and then waits for the next result from A. This means that the composition of resources for operation B are not utilized during 80% of the time and is thus wasted. In this situation, loop unrolling operation B will not benefit the system but instead consume under-utilized resources. If possible, it would be beneficial to construct the model such that the computation resources of operation B are shared over time partitions with other operations in the model. Time multiplexing fully-utilized resources will of course increase overall system latency and decrease throughput. This may be required for larger designs or when constrained to smaller FPGA devices. Together, loop unrolling and time multiplexing can be used to balance overall system performance and efficiency and to utlimately maximize capability.
+**Time Multiplexing** (otherwise known as folding) has the opposite effect of loop unrolling. It is the sharing of a computational resource among multiple operations that are executed during different time intervals. This technique can be used to optimize resource utilization when certain processes are not required to run all the time. For exmaple, let us say that every 50 clock cycles operation A generates a result which is used as an input to operation B. Once operation B consumes that result it takes only 10 clocks to finish its calculation and then waits for the next result from A. This means that the composition of resources for operation B are not utilized 80% of the time and is thus not optimal. In this situation, loop unrolling operation B will not benefit the system but will instead consume under-utilized resources. If possible, it would be beneficial to construct the model such that the computation resources of operation B are shared over time partitions with other operations in the model. Time multiplexing fully-utilized resources will of course increase overall system latency and decrease throughput. This may be required for larger designs or when constrained to smaller FPGA devices. Together, loop unrolling and time multiplexing can be used to balance a system's performance and optimize efficiency, utlimately maximizing capability.
 
 
 * Weight Reduction (SVD)
@@ -135,11 +143,11 @@ Custom Types
 
 .. code-block:: VHDL
 
-    -- Type definition
-    type GridType is array(natural range <>, natural range <>, natural range <>) of unsigned;
+  -- Type definition
+  type GridType is array(natural range <>, natural range <>, natural range <>) of unsigned;
 
-    -- Example declaration for 32x32 pixel RGB (3-channel) image w/ 8-bit color resolution
-    signal Input_Image is array(1 to 32, 1 to 32, 1 to 3)(7 downto 0);
+  -- Example declaration for 32x32 pixel RGB (3-channel) image w/ 8-bit color resolution
+  signal Input_Image is array(1 to 32, 1 to 32, 1 to 3)(7 downto 0);
 
 GridType is used to represent a single image or kernel as a three-dimensional array of custom-bit values. When instantiating a GridType signal or variable, the length of each dimension along with the bit resolution must be defined.
 
@@ -152,7 +160,10 @@ This module was designed as a fully loop-unrolled single-clock convolution accel
 
 Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
 
-[]
+.. math::
+  
+  o = \frac{i + 2p - k}{s} + 1
+
 TODO:
 
 * Time multiplexing
@@ -175,55 +186,55 @@ TODO:
   use xil_defaultlib.mypackage.ALL;
 
   entity convolution is
-      Generic(
-          IMAGE_SIZE      : natural := 6;
-          KERNEL_SIZE     : natural := 3;
-          CHANNEL_COUNT   : natural := 3
-      );
-      Port (  
-          Aclk            : in std_logic;
-          Aresetn         : in std_logic;
-          Input_Image     : in 
-              GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
-          Kernel_Weights  : in 
-              GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
-          Feature_Map     : out 
-              GridType( 1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
-                        1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
-                        1 to CHANNEL_COUNT)(15 downto 0)
-      );
+    Generic(
+      IMAGE_SIZE      : natural := 6;
+      KERNEL_SIZE     : natural := 3;
+      CHANNEL_COUNT   : natural := 3
+    );
+    Port (  
+      Aclk            : in std_logic;
+      Aresetn         : in std_logic;
+      Input_Image     : in 
+        GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
+      Kernel_Weights  : in 
+        GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
+      Feature_Map     : out 
+        GridType( 1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
+            1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
+            1 to CHANNEL_COUNT)(15 downto 0)
+    );
   end convolution;
 
   architecture Behavioral of convolution is
   begin
 
-      process(Aclk, Aresetn)
-          variable var_feature 
-              : GridType(Feature_Map'range(1), Feature_Map'range(2), Feature_Map'range(3))(15 downto 0);
-      begin
-          var_feature := (others => (others => (others => (others => '0'))));
-          if Aresetn = '0' then
-              Feature_Map <= (others => (others => (others => (others => '0'))));
-          elsif rising_edge(Aclk) then
-              for row_iter in Feature_Map'range(1) loop
-                  for col_iter in Feature_Map'range(2) loop
-                      for row in Kernel_Weights'range(1) loop
-                          for column in Kernel_Weights'range(2) loop
-                              for channel in 1 to CHANNEL_COUNT loop
-                                  var_feature(row_iter, col_iter, channel) := (
-                                      var_feature(row_iter, col_iter, channel) + (
-                                          Input_Image(row + row_iter - 1, column + col_iter - 1, channel) * 
-                                          Kernel_Weights(row, column, channel)
-                                      )
-                                  );
-                              end loop;
-                          end loop;
-                      end loop;
-                  end loop;
+    process(Aclk, Aresetn)
+      variable var_feature 
+        : GridType(Feature_Map'range(1), Feature_Map'range(2), Feature_Map'range(3))(15 downto 0);
+    begin
+      var_feature := (others => (others => (others => (others => '0'))));
+      if Aresetn = '0' then
+        Feature_Map <= (others => (others => (others => (others => '0'))));
+      elsif rising_edge(Aclk) then
+        for row_iter in Feature_Map'range(1) loop
+          for col_iter in Feature_Map'range(2) loop
+            for row in Kernel_Weights'range(1) loop
+              for column in Kernel_Weights'range(2) loop
+                for channel in 1 to CHANNEL_COUNT loop
+                  var_feature(row_iter, col_iter, channel) := (
+                    var_feature(row_iter, col_iter, channel) + (
+                      Input_Image(row + row_iter - 1, column + col_iter - 1, channel) * 
+                      Kernel_Weights(row, column, channel)
+                    )
+                  );
+                end loop;
               end loop;
-              Feature_Map <= var_feature;
-          end if;
-      end process;
+            end loop;
+          end loop;
+        end loop;
+        Feature_Map <= var_feature;
+      end if;
+    end process;
 
   end Behavioral;
 
@@ -271,7 +282,7 @@ mypackage.vhd
 
 .. code-block:: VHDL
 
-    
+  
   library IEEE;
   use IEEE.STD_LOGIC_1164.ALL;
   use IEEE.NUMERIC_STD.ALL;
@@ -280,42 +291,42 @@ mypackage.vhd
 
   package mypackage is
 
-      type GridType is array(natural range <>, natural range <>, natural range <>) of unsigned;
+    type GridType is array(natural range <>, natural range <>, natural range <>) of unsigned;
 
-      component convolution
-          Generic(
-              IMAGE_SIZE      : natural := 6;
-              KERNEL_SIZE     : natural := 3;
-              CHANNEL_COUNT   : natural := 3
-          );
-          Port (  
-              Aclk            : in std_logic;
-              Aresetn         : in std_logic;
-              Input_Image     : in 
-                GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
-              Kernel_Weights  : in 
-                GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
-              Feature_Map     : out 
-                GridType( 1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
-                          1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
-                          1 to CHANNEL_COUNT)(15 downto 0)
-          );
-      end component;
+    component convolution
+      Generic(
+        IMAGE_SIZE      : natural := 6;
+        KERNEL_SIZE     : natural := 3;
+        CHANNEL_COUNT   : natural := 3
+      );
+      Port (  
+        Aclk            : in std_logic;
+        Aresetn         : in std_logic;
+        Input_Image     : in 
+        GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
+        Kernel_Weights  : in 
+        GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
+        Feature_Map     : out 
+        GridType( 1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
+              1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
+              1 to CHANNEL_COUNT)(15 downto 0)
+      );
+    end component;
 
-     component interface_conv
-          Generic(
-              IMAGE_SIZE      : natural := 6;
-              KERNEL_SIZE     : natural := 3;
-              CHANNEL_COUNT   : natural := 3
-          );
-          Port (  
-              Aclk            : in std_logic;
-              Aresetn         : in std_logic;
-              Input_Image     : in std_logic_vector(8*IMAGE_SIZE**2-1 downto 0);
-              Kernel_Weights  : in std_logic_vector(8*KERNEL_SIZE**2-1 downto 0);
-              Feature_Map     : out std_logic_vector(16*(IMAGE_SIZE-KERNEL_SIZE+1)**2-1 downto 0)
-          );
-      end component;
+   component interface_conv
+      Generic(
+        IMAGE_SIZE      : natural := 6;
+        KERNEL_SIZE     : natural := 3;
+        CHANNEL_COUNT   : natural := 3
+      );
+      Port (  
+        Aclk            : in std_logic;
+        Aresetn         : in std_logic;
+        Input_Image     : in std_logic_vector(8*IMAGE_SIZE**2-1 downto 0);
+        Kernel_Weights  : in std_logic_vector(8*KERNEL_SIZE**2-1 downto 0);
+        Feature_Map     : out std_logic_vector(16*(IMAGE_SIZE-KERNEL_SIZE+1)**2-1 downto 0)
+      );
+    end component;
 
   end package mypackage;
 
