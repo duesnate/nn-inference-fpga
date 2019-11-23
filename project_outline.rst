@@ -121,7 +121,7 @@ Green: Specific technical strategies
 * Increase performance:
 
   - More computation units: reduce unit size, reduce precision (may reduce accuracy)
-  - Increase utilization ratio: parallelism, time-multiplexing, efficient memory/ocm system and scheduling.
+  - Increase utilization efficiency: parallelism, time-multiplexing, efficient memory/ocm use and scheduling.
   - Increase working frequency
   - Sparsification: settings more wieghts to zero.
 
