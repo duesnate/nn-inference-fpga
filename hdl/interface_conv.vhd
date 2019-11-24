@@ -27,6 +27,7 @@ use xil_defaultlib.mypackage.ALL;
 
 entity interface_conv is
     Generic(
+        FOLDING         : boolean := TRUE;
         IMAGE_SIZE      : natural := 6;
         KERNEL_SIZE     : natural := 3;
         CHANNEL_COUNT   : natural := 3;
@@ -53,29 +54,29 @@ architecture Behavioral of interface_conv is
 
 begin
 
-    gen_image_row: for row in Input_Image_i'range(1) generate
-        gen_image_col: for column in Input_Image_i'range(2) generate
-            gen_image_chan: for channel in Input_Image_i'range(3) generate
+    gen_image_row : for row in Input_Image_i'range(1) generate
+        gen_image_col : for column in Input_Image_i'range(2) generate
+            gen_image_chan : for channel in Input_Image_i'range(3) generate
                 Input_Image_i(row, column, channel) 
                     <= signed(Input_Image((channel + ((column - 1) + (row - 1) * IMAGE_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
-                                            (channel + ((column - 1) + (row - 1) * IMAGE_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS));
+                                          (channel + ((column - 1) + (row - 1) * IMAGE_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS));
             end generate gen_image_chan;
         end generate gen_image_col;
     end generate gen_image_row;
 
-    gen_kernel_row: for row in Kernel_Weights_i'range(1) generate
-        gen_kernel_col: for column in Kernel_Weights_i'range(2) generate
-            gen_kernel_chan: for channel in Kernel_Weights_i'range(3) generate
+    gen_kernel_row : for row in Kernel_Weights_i'range(1) generate
+        gen_kernel_col : for column in Kernel_Weights_i'range(2) generate
+            gen_kernel_chan : for channel in Kernel_Weights_i'range(3) generate
                 Kernel_Weights_i(row, column, channel) 
                     <= signed(Kernel_Weights( (channel + ((column - 1) + (row - 1) * KERNEL_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
-                                                (channel + ((column - 1) + (row - 1) * KERNEL_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS));
+                                              (channel + ((column - 1) + (row - 1) * KERNEL_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS));
             end generate gen_kernel_chan;
         end generate gen_kernel_col;
     end generate gen_kernel_row;
 
-    gen_feature_row: for row in Feature_Map_i'range(1) generate
-        gen_feature_col: for column in Feature_Map_i'range(2) generate
-            gen_feature_chan: for channel in Feature_Map_i'range(3) generate
+    gen_feature_row : for row in Feature_Map_i'range(1) generate
+        gen_feature_col : for column in Feature_Map_i'range(2) generate
+            gen_feature_chan : for channel in Feature_Map_i'range(3) generate
                 Feature_Map((channel + ((column - 1) + (row - 1) * FEATURE_SIZE) * CHANNEL_COUNT) * GRADIENT_BITS - 1 downto 
                             (channel + ((column - 1) + (row - 1) * FEATURE_SIZE) * CHANNEL_COUNT - 1) * GRADIENT_BITS)
                     <= std_logic_vector(Feature_Map_i(row, column, channel));
@@ -83,22 +84,41 @@ begin
         end generate gen_feature_col;
     end generate gen_feature_row;
 
-    convolution_00 : convolution
-        generic map (
-            IMAGE_SIZE      => IMAGE_SIZE,
-            KERNEL_SIZE     => KERNEL_SIZE,
-            CHANNEL_COUNT   => CHANNEL_COUNT,
-            GRADIENT_BITS   => GRADIENT_BITS,
-            STRIDE_STEPS    => STRIDE_STEPS,
-            ZERO_PADDING    => ZERO_PADDING
-        )
-        port map (
-            Aclk            => Aclk,
-            Aresetn         => Aresetn,
-            Input_Image     => Input_Image_i,
-            Kernel_Weights  => Kernel_Weights_i,
-            Feature_Map     => Feature_Map_i
-        );
+    gen_conv : if FOLDING generate
+        folded_conv_00 : folded_conv
+            generic map (
+                IMAGE_SIZE      => IMAGE_SIZE,
+                KERNEL_SIZE     => KERNEL_SIZE,
+                CHANNEL_COUNT   => CHANNEL_COUNT,
+                GRADIENT_BITS   => GRADIENT_BITS,
+                STRIDE_STEPS    => STRIDE_STEPS,
+                ZERO_PADDING    => ZERO_PADDING
+            )
+            port map (
+                Aclk            => Aclk,
+                Aresetn         => Aresetn,
+                Input_Image     => Input_Image_i,
+                Kernel_Weights  => Kernel_Weights_i,
+                Feature_Map     => Feature_Map_i
+            );
+    else generate
+        convolution_00 : convolution
+            generic map (
+                IMAGE_SIZE      => IMAGE_SIZE,
+                KERNEL_SIZE     => KERNEL_SIZE,
+                CHANNEL_COUNT   => CHANNEL_COUNT,
+                GRADIENT_BITS   => GRADIENT_BITS,
+                STRIDE_STEPS    => STRIDE_STEPS,
+                ZERO_PADDING    => ZERO_PADDING
+            )
+            port map (
+                Aclk            => Aclk,
+                Aresetn         => Aresetn,
+                Input_Image     => Input_Image_i,
+                Kernel_Weights  => Kernel_Weights_i,
+                Feature_Map     => Feature_Map_i
+            );
+    end generate gen_conv;
 
 end Behavioral;
 

@@ -39,6 +39,36 @@ package mypackage is
         );
     end component;
 
+    component folded_conv
+        Generic(
+            IMAGE_SIZE      : natural := 6;
+            KERNEL_SIZE     : natural := 3;
+            CHANNEL_COUNT   : natural := 3;
+            GRADIENT_BITS   : natural := 8;
+            STRIDE_STEPS    : natural := 1;
+            ZERO_PADDING    : integer := 0
+        );
+        Port (  
+            Aclk            : in std_logic;
+            Aresetn         : in std_logic;
+            Input_Image     : in GridType(  
+                1 to IMAGE_SIZE,
+                1 to IMAGE_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0);
+            Kernel_Weights  : in GridType(  
+                1 to KERNEL_SIZE,
+                1 to KERNEL_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0);
+            Feature_Map     : out GridType( 
+                1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
+                1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS-1 downto 0)
+        );
+    end component;
+
     component relu
         Generic(
             FEATURE_SIZE    : natural := 6;
@@ -86,6 +116,7 @@ package mypackage is
 
     component interface_conv
         Generic(
+            FOLDING         : boolean := TRUE;
             IMAGE_SIZE      : natural := 6;
             KERNEL_SIZE     : natural := 3;
             CHANNEL_COUNT   : natural := 3;
@@ -104,7 +135,7 @@ package mypackage is
 
     component interface_relu
         Generic(
-            FEATURE_SIZE      : natural := 6;
+            FEATURE_SIZE    : natural := 6;
             CHANNEL_COUNT   : natural := 3;
             GRADIENT_BITS   : natural := 8
         );

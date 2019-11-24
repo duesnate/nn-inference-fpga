@@ -27,6 +27,7 @@ use xil_defaultlib.mypackage.ALL;
 
 entity wrap_conv is
     generic (
+        FOLDING       : boolean := TRUE;
         IMAGE_SIZE    : natural := 6;
         KERNEL_SIZE   : natural := 3;
         CHANNEL_COUNT : natural := 3;
@@ -47,6 +48,7 @@ architecture Behavioral of wrap_conv is
 begin
     interface_conv_00 : interface_conv
         generic map (
+            FOLDING         => FOLDING,
             IMAGE_SIZE      => IMAGE_SIZE,
             KERNEL_SIZE     => KERNEL_SIZE,
             CHANNEL_COUNT   => CHANNEL_COUNT,
