@@ -122,7 +122,27 @@ Using this training-weight derived, positive-only, threshold value, we can now a
 
 **Loop Unrolling** is a technique that has potential to both decrease a model's latency as well as increase its throughput capacity. Loop unrolling is what allows a design to capitalize on what FPGAs have been known to excel at. That is, parallel processing. As previously discussed, CNN models are primarily composed of SIMD type operations where a benefit can be realized by instantiating many processing elements - such as MACs - in parallel. This is possible because convolution operations do not require an extensive number of calculations that need to execute in a specific sequence. In other words, the output of one MAC operation in a convolutional layer does not need to be made available to another MAC in that same layer. As is demonstrated later in this report, each of the popular CNN layers (convolution, activation, pooling...etc) can theoretically be executed in just a single clock cycle. Although the idea of classifying millions of images every second is exciting, there are two primary restraints when attempting to unroll a model. First is the apparent limitation of available logic resources on an FPGA. A fully unrolled layer such as convolution could easily consume the resources of an entire logic device, depending on the device and the dimensions of the image. The second restraint is timing closure. A large convolution kernel will require the summation of many multiplier products. All these multiply and adder circuits will need to resolve before the arrival of the following clock edge which will lock the final result into a register. If the propogation delays are too long or the clock is too fast, an implementated design will fail timing analysis meaning that the clock could register erroneous data.
 
-**Time Multiplexing** (otherwise known as folding) has the opposite effect of loop unrolling. It is the sharing of a computational resource among multiple operations that are executed during different time intervals. This technique can be used to optimize resource utilization when certain processes are not required to run all the time. For exmaple, let us say that every 50 clock cycles operation A generates a result which is used as an input to operation B. Once operation B consumes that result it takes only 10 clocks to finish its calculation and then waits for the next result from A. This means that the composition of resources for operation B are not utilized 80% of the time and is thus not optimal. In this situation, loop unrolling operation B will not benefit the system but will instead consume under-utilized resources. If possible, it would be beneficial to construct the model such that the computation resources of operation B are shared over time partitions with other operations in the model. Time multiplexing fully-utilized resources will of course increase overall system latency and decrease throughput. This may be required for larger designs or when constrained to smaller FPGA devices. Together, loop unrolling and time multiplexing can be used to balance a system's performance and optimize efficiency, utlimately maximizing capability.
+**Folding** (otherwise known as time-multiplexing) has the opposite effect of loop unrolling. It is the sharing of a computational resource among multiple operations that are executed during different time intervals. This technique can be used to optimize resource utilization when certain processes are not required to run all the time. For exmaple, let us say that every 50 clock cycles operation A generates a result which is used as an input to operation B. Once operation B consumes that result it takes only 10 clocks to finish its calculation and then waits for the next result from A. This means that the composition of resources for operation B are not utilized 80% of the time and is thus not optimal. In this situation, loop unrolling operation B will not benefit the system but will instead consume under-utilized resources. If possible, it would be beneficial to construct the model such that the computation resources of operation B are shared over time partitions with other operations in the model. Time-multiplexing fully-utilized resources will of course increase overall system latency and decrease throughput. This may be required for larger designs or when constrained to smaller FPGA devices. Together, loop unrolling and folding can be used to balance a system's performance and optimize efficiency, utlimately maximizing capability.
+
+Post-Synthesis Convolution Utilization with and without Folding (Git hash: d273698)
+
+* Image Size: 	10x10
+* Channels: 	1
+* Resolution: 	8-bit
+* Stride: 		1
+* Padding: 		0
+
++-----------------+-----------+------------------+-----------------+
+| Site Type       | Available | Used w/o Folding | Used w/ Folding |
++=================+===========+==================+=================+
+| Slice LUTs      | 17600     | 45121 (256.37%)  | 1950 (11.08%)   |
++-----------------+-----------+------------------+-----------------+
+| Slice Registers | 35200     | 512 (1.45%)      | 532 (1.51%)     |
++-----------------+-----------+------------------+-----------------+
+| F7 Muxes        | 8800      | 0 (0.00%)        | 102 (1.16%)     |
++-----------------+-----------+------------------+-----------------+
+| F8 Muxes        | 4400      | 0 (0.00%)        | 0 (0.00%)       |
++-----------------+-----------+------------------+-----------------+
 
 
 * Weight Reduction (SVD)
