@@ -38,14 +38,16 @@ entity folded_conv is
         -- Clock Cycles: C = Ch*F**2
     );
     Port (
-        Aclk            : in std_logic;
-        Aresetn         : in std_logic;
+        Aclk           : in std_logic;
+        Aresetn        : in std_logic;
         -- Image Stream Width:   Wi = 8*ceil(B*Ch*I**2/(8*C)) -- Image_Stream    : in std_logic_vector(8 * ceil(GRADIENT_BITS * IMAGE_SIZE**2 / (8 * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2)));
-        Image_Stream : in std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Image_Valid  : in std_logic;
-        Image_Ready  : out std_logic;
+        Image_Stream   : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+        Image_Valid    : in std_logic;
+        Image_Ready    : out std_logic;
         -- Kernel Stream Width:  Wk = 8*ceil(B*Ch*K**2/(8*C)) -- Kernel_Stream   : in std_logic_vector(8 * ceil(GRADIENT_BITS * IMAGE_SIZE**2 / (8 * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2)));
-        Kernel_Stream : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+        Kernel_Stream  : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+        Kernal_Valid   : in std_logic;
+        Kernal_Ready   : out std_logic;
         -- Feature Stream Width: Wf = 8*ceil(B/8) -- Feature_Stream  : out std_logic_vector(8 * ceil(GRADIENT_BITS / 8))
         Feature_Stream : out std_logic_vector(GRADIENT_BITS-1 downto 0);
         Feature_Valid  : out std_logic;
@@ -58,21 +60,27 @@ architecture Behavioral of folded_conv is
     -- Prevents overflow of summation
     constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2))));
 
-    signal Fifo_Image : GridType(
-        1 to IMAGE_SIZE,
-        1 to IMAGE_SIZE,
-        1 to CHANNEL_COUNT
-        ) (GRADIENT_BITS - 1 downto 0);
-
     signal Input_Image : GridType(
         1 to IMAGE_SIZE,
         1 to IMAGE_SIZE,
         1 to CHANNEL_COUNT
         ) (GRADIENT_BITS - 1 downto 0);
 
-    signal Image_Padded : GridType(
+    signal Conv_Image : GridType(
+        1 to IMAGE_SIZE,
+        1 to IMAGE_SIZE,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+    signal Padded_Image : GridType(
         1 to IMAGE_SIZE + 2 * ZERO_PADDING,
         1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+    signal Input_Kernel : GridType(
+        1 to KERNEL_SIZE,
+        1 to KERNEL_SIZE,
         1 to CHANNEL_COUNT
         ) (GRADIENT_BITS - 1 downto 0);
 
@@ -82,116 +90,149 @@ architecture Behavioral of folded_conv is
         1 to CHANNEL_COUNT
         ) (GRADIENT_BITS - 1 downto 0);
 
-    signal Feature_Map : out GridType(
+    signal Conv_Feature : out GridType(
         1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
         1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
         1 to CHANNEL_COUNT
         ) (GRADIENT_BITS - 1 downto 0);
-
-    type stateType is (CHN_STATE, COL_STATE, ROW_STATE);
     
+    -- For rx image iterator
+    signal image_hold : boolean;
+    signal image_row : integer range Conv_Image'range(1);
+    signal image_col : integer range Conv_Image'range(2);
+    signal image_chn : integer range Conv_Image'range(3);
+    -- For rx kernel iterator
+    signal kernel_hold : boolean;
+    signal kernel_row : integer range Kernel_Weights'range(1);
+    signal kernel_col : integer range Kernel_Weights'range(2);
+    signal kernel_chn : integer range Kernel_Weights'range(3);
+    -- For convolution iterator
     signal conv_hold : boolean;
-    signal conv_row : integer range Feature_Map'range(1);
-    signal conv_col : integer range Feature_Map'range(2);
-    signal conv_chn : integer range Feature_Map'range(3);
-    signal fifo_hold : boolean;
-    signal fifo_row : integer range Feature_Map'range(1);
-    signal fifo_col : integer range Feature_Map'range(2);
-    signal fifo_chn : integer range Feature_Map'range(3);
+    signal conv_row : integer range Conv_Feature'range(1);
+    signal conv_col : integer range Conv_Feature'range(2);
+    signal conv_chn : integer range Conv_Feature'range(3);
+    -- For tx feature iterator
+    signal feature_hold : boolean;
+    signal feature_row : integer range Conv_Feature'range(1);
+    signal feature_col : integer range Conv_Feature'range(2);
+    signal feature_chn : integer range Conv_Feature'range(3);
 
 begin
 
-    -- Data-flow controller
+    --------------- Data-flow controller -------------
     process(Aclk, Aresetn)
     begin
         if Aresetn = '0' then
             transfer_complete <= FALSE;
-            Input_Image <= (others => (others => (others => (others => '0'))));
-            Fifo_Feature <= (others => (others => (others => (others => '0'))));
+            Conv_Image <= (others => (others => (others => (others => '0'))));
+            Output_Feature <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
             if transfer_complete then
                 transfer_complete <= FALSE;
-            elsif stream_in_complete and convolution_complete and stream_out_complete then
-                Input_Image <= Fifo_Image;
-                Fifo_Feature <= Feature_Map;
+            elsif image_complete and kernel_complete and convolution_complete and feature_complete then
+                Kernel_Weights <= Input_Kernel
+                Conv_Image <= Input_Image;
+                Output_Feature <= Conv_Feature;
                 transfer_complete <= TRUE;
             end if;
         end if;
     end process;
+    --------------------------------------------------
 
-    iterator_fifo_image : feature_iterator
-        generic map (
-            FEATURE_SIZE    => Fifo_Image'high(1),
-            CHANNEL_COUNT   => Fifo_Image'high(3)
-            )
-        port map (
-            Aclk    => Aclk,
-            Aresetn => Aresetn,
-            hold    => fifo_hold,
-            row     => fifo_row,
-            column  => fifo_col,
-            channel => fifo_chn
-            );
-
-    fifo_hold <= TRUE when (Image_Valid = '0') or ( (fifo_row + fifo_col + fifo_chn = 3) and (not transfer_complete) ) else FALSE;
-
-    Image_Ready <= not fifo_hold;
-
-    -- Store image in FIFO
+    ---------------- RX in image FIFO ----------------
     process(Aclk, Aresetn)
     begin
         if Aresetn = '0' then
-            stream_in_complete <= FALSE;
-            Fifo_Image <= (others => (others => (others => (others => '0'))));
+            Input_Image <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
-            if fifo_row + fifo_col + fifo_chn = fifo_row'high + fifo_col'high + fifo_chn'high then
-                stream_in_complete <= TRUE;
-            else
-                Fifo_Image(fifo_row, fifo_col, fifo_chn) <= Image_Stream;
-                stream_in_complete <= FALSE;
+            if not image_hold then
+                Input_Image(image_row, image_col, image_chn) <= Image_Stream;
             end if;
         end if;
     end process;
 
-    -- Generate zero-padded image
-    gen_row: for row in Image_Padded'range(1) generate
-        gen_col: for col in Image_Padded'range(2) generate
-            gen_chl: for chn in Image_Padded'range(3) generate
+    iterator_Input_image : feature_iterator
+        generic map (
+            FEATURE_SIZE    => Input_Image'high(1),
+            CHANNEL_COUNT   => Input_Image'high(3)
+            )
+        port map (
+            Aclk    => Aclk,
+            Aresetn => Aresetn,
+            hold    => image_hold,
+            row     => image_row,
+            column  => image_col,
+            channel => image_chn
+            );
+
+    image_complete  <= TRUE when image_row + image_col + image_chn = 3 and not transfer_complete else FALSE;
+    Image_Ready     <= not image_complete;
+    image_hold      <= FALSE when Image_Valid and Image_Ready else TRUE;
+    --------------------------------------------------
+
+    ---------------- RX in kernel FIFO ----------------
+    process(Aclk, Aresetn)
+    begin
+        if Aresetn = '0' then
+            Input_Kernel <= (others => (others => (others => (others => '0'))));
+        elsif rising_edge(Aclk) then
+            if not kernel_hold then
+                Input_Kernel(kernel_row, kernel_col, kernel_chn) <= Kernel_Stream;
+            end if;
+        end if;
+    end process;
+
+    iterator_Input_Kernel : feature_iterator
+        generic map (
+            FEATURE_SIZE    => Input_Kernel'high(1),
+            CHANNEL_COUNT   => Input_Kernel'high(3)
+            )
+        port map (
+            Aclk    => Aclk,
+            Aresetn => Aresetn,
+            hold    => kernel_hold,
+            row     => kernel_row,
+            column  => kernel_col,
+            channel => kernel_chn
+            );
+
+    kernel_complete  <= TRUE when kernel_row + kernel_col + kernel_chn = 3 and not transfer_complete else FALSE;
+    Kernel_Ready     <= not kernel_complete;
+    kernel_hold      <= FALSE when Kernel_Valid and Kernel_Ready else TRUE;
+    --------------------------------------------------
+
+    ----------- Generate zero-padded image -----------
+    gen_row: for row in Padded_Image'range(1) generate
+        gen_col: for col in Padded_Image'range(2) generate
+            gen_chl: for chn in Padded_Image'range(3) generate
                 -- Fill with input image when out of padding range
                 gen_zp: if  (row > ZERO_PADDING) and 
                             (col > ZERO_PADDING) and 
-                            (row <= Image_Padded'high(1) - ZERO_PADDING) and 
-                            (col <= Image_Padded'high(2) - ZERO_PADDING) generate
-                    Image_Padded(row, col, chn) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
+                            (row <= Padded_Image'high(1) - ZERO_PADDING) and 
+                            (col <= Padded_Image'high(2) - ZERO_PADDING) generate
+                    Padded_Image(row, col, chn) <= Conv_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
                 else generate
-                    Image_Padded(row, col, chn) <= (others => '0');
+                    Padded_Image(row, col, chn) <= (others => '0');
                 end generate gen_zp;
             end generate gen_chl;
         end generate gen_col;
     end generate gen_row;
+    --------------------------------------------------
 
-    -- Compute convolution
+    --------------- Compute convolution --------------
     process(Aclk, Aresetn)
         variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
     begin
         if Aresetn = '0' then
-            convolution_complete <= FALSE;
-            Feature_Map <= (others => (others => (others => (others => '0'))));
+            Conv_Feature <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
-            if conv_row + conv_col + conv_chn >= conv_row'high + conv_col'high + conv_chn'high then
-                convolution_complete <= TRUE;
-            else
-                convolution_complete <= FALSE;
-            end if;
-
-            -- Clear summation
             feature_sum := (others => '0');
             for row in Kernel_Weights'range(1) loop
                 for column in Kernel_Weights'range(2) loop
                     ----- Multiply Accumulate -----
                     feature_sum := feature_sum
                         -- Add Input Neuron
-                        + Image_Padded(
+                        + Padded_Image(
                             STRIDE_STEPS * (conv_row - 1) + row, 
                             STRIDE_STEPS * (conv_col - 1) + column, 
                             conv_chn)
@@ -201,31 +242,59 @@ begin
                 end loop;
             end loop;
             -- Scale down Result
-            Feature_Map(conv_row, conv_col, conv_chn) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+            Conv_Feature(conv_row, conv_col, conv_chn) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
         end if;
     end process;
+
+    convolution_complete <= TRUE when conv_row + conv_col + conv_chn = 3 and not transfer_complete else FALSE;
 
     -- Convolution folding iterator state machine
     iterator_conv_folding : feature_iterator
         generic map (
-            FEATURE_SIZE    => Feature_Map'high(1),
-            CHANNEL_COUNT   => Feature_Map'high(3)
+            FEATURE_SIZE    => Conv_Feature'high(1),
+            CHANNEL_COUNT   => Conv_Feature'high(3)
             )
         port map (
             Aclk    => Aclk,
             Aresetn => Aresetn,
-            hold    => conv_hold,
+            hold    => convolution_complete,
             row     => conv_row,
             column  => conv_col,
             channel => conv_chn
             );
+    --------------------------------------------------
 
-    conv_hold <= TRUE when (conv_row + conv_col + conv_chn = 3) and (not transfer_complete) else FALSE;
+    -------------- TX out feature FIFO ---------------
+    process(Aclk, Aresetn)
+    begin
+        if Aresetn = '0' then
+            Output_Feature <= (others => (others => (others => (others => '0'))));
+        elsif rising_edge(Aclk) then
+            if not feature_hold then
+                Feature_Stream <= Output_Feature(feature_row, feature_col, feature_chn);
+            end if;
+        end if;
+    end process;
+
+    feature_complete <= TRUE when feature_row + feature_col + feature_chn = 3 and not transfer_complete else FALSE;
+    Feature_Valid       <= not feature_complete;
+    feature_hold   <= FALSE when Feature_Valid and Feature_Ready else TRUE;
+
+    iterator_output_feature : feature_iterator
+        generic map (
+            FEATURE_SIZE    => Output_Feature'high(1),
+            CHANNEL_COUNT   => Output_Feature'high(3)
+            )
+        port map (
+            Aclk    => Aclk,
+            Aresetn => Aresetn,
+            hold    => feature_hold,
+            row     => feature_row,
+            column  => feature_col,
+            channel => feature_chn
+            );
+    --------------------------------------------------
 
 end Behavioral;
-
-
--- Stream image in | convolve image | stream feature out
--- Transfer image for conv | transfer feature from conv
 
 
