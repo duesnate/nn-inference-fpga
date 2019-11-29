@@ -1,11 +1,26 @@
+
+*.dat
+*.log
+*.jou
+*.sublime-workspace
+*.ld
+*.pdf
+*.str
 hdl/*.o
 hdl/*.cf
 papers/
-*.pdf
 figs/
 dmount/
 vivado/
 zybo/
 papers/
 hdl/xil_defaultlib/
+.Xil/
+
+NA/
+osmodels/
+
+# Temporarily
+sphinx/
+
 
