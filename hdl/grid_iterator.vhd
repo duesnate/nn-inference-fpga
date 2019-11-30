@@ -4,7 +4,7 @@
 -- 
 -- Create Date:
 -- Design Name: 
--- Module Name: feature_iterator - Behavioral
+-- Module Name: grid_iterator - Behavioral
 -- Project Name: 
 -- Target Devices: 
 -- Tool Versions: 
@@ -26,28 +26,28 @@ use IEEE.math_real.all;
 library xil_defaultlib;
 use xil_defaultlib.mypackage.ALL;
 
-entity feature_iterator is
+entity grid_iterator is
     Generic(
-        FEATURE_SIZE    : natural := 8;
+        GRID_SIZE    : natural := 8;
         CHANNEL_COUNT   : natural := 3
     );
     Port (
         Aclk    : in std_logic;
         Aresetn : in std_logic;
         hold    : in boolean;
-        row     : out integer range 1 to FEATURE_SIZE;
-        column  : out integer range 1 to FEATURE_SIZE;
+        row     : out integer range 1 to GRID_SIZE;
+        column  : out integer range 1 to GRID_SIZE;
         channel : out integer range 1 to CHANNEL_COUNT
     );
-end feature_iterator;
+end grid_iterator;
 
-architecture Behavioral of feature_iterator is
+architecture Behavioral of grid_iterator is
 
     type stateType is (CHN_STATE, COL_STATE, ROW_STATE);
 
     signal iter_state   : stateType;
-    signal row_iter     : integer range 1 to FEATURE_SIZE;
-    signal col_iter     : integer range 1 to FEATURE_SIZE;
+    signal row_iter     : integer range 1 to GRID_SIZE;
+    signal col_iter     : integer range 1 to GRID_SIZE;
     signal chn_iter     : integer range 1 to CHANNEL_COUNT;
 
 begin
@@ -64,7 +64,7 @@ begin
             col_iter <= 1;
             chn_iter <= 1;
         elsif rising_edge(Aclk) then
-            -- Pause iterations when hold is asserted
+            -- Pause iterations while hold is asserted
             if not hold then 
                 case iter_state is
                     when CHN_STATE => 
@@ -75,7 +75,7 @@ begin
                             chn_iter <= chn_iter + 1;
                         end if;
                     when COL_STATE =>
-                        if col_iter >= FEATURE_SIZE then 
+                        if col_iter >= GRID_SIZE then 
                             col_iter <= 1;
                             iter_state <= ROW_STATE;
                         else 
@@ -83,7 +83,7 @@ begin
                             iter_state <= CHN_STATE;
                         end if;
                     when ROW_STATE =>
-                        if row_iter >= FEATURE_SIZE then 
+                        if row_iter >= GRID_SIZE then 
                             row_iter <= 1;
                         else 
                             row_iter <= row_iter + 1;

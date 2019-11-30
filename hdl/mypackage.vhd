@@ -48,24 +48,18 @@ package mypackage is
             STRIDE_STEPS    : natural := 1;
             ZERO_PADDING    : integer := 0
         );
-        Port (  
-            Aclk            : in std_logic;
-            Aresetn         : in std_logic;
-            Input_Image     : in GridType(  
-                1 to IMAGE_SIZE,
-                1 to IMAGE_SIZE,
-                1 to CHANNEL_COUNT
-                ) (GRADIENT_BITS-1 downto 0);
-            Kernel_Weights  : in GridType(  
-                1 to KERNEL_SIZE,
-                1 to KERNEL_SIZE,
-                1 to CHANNEL_COUNT
-                ) (GRADIENT_BITS-1 downto 0);
-            Feature_Map     : out GridType( 
-                1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
-                1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
-                1 to CHANNEL_COUNT
-                ) (GRADIENT_BITS-1 downto 0)
+        Port (
+            Aclk           : in std_logic;
+            Aresetn        : in std_logic;
+            Image_Stream   : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+            Image_Valid    : in boolean;
+            Image_Ready    : out boolean;
+            Kernel_Stream  : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+            Kernel_Valid   : in boolean;
+            Kernel_Ready   : out boolean;
+            Feature_Stream : out std_logic_vector(GRADIENT_BITS-1 downto 0);
+            Feature_Valid  : out boolean;
+            Feature_Ready  : in boolean
         );
     end component;
 
@@ -159,6 +153,63 @@ package mypackage is
             Aresetn     : in std_logic;
             Feature_In  : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0);
             Feature_Out : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*(FEATURE_SIZE/POOL_SIZE)**2-1 downto 0)
+        );
+    end component;
+
+    component grid_iterator
+        Generic(
+            GRID_SIZE       : natural := 8;
+            CHANNEL_COUNT   : natural := 3
+        );
+        Port (
+            Aclk    : in std_logic;
+            Aresetn : in std_logic;
+            hold    : in boolean;
+            row     : out integer range 1 to GRID_SIZE;
+            column  : out integer range 1 to GRID_SIZE;
+            channel : out integer range 1 to CHANNEL_COUNT
+        );
+    end component;
+
+    component stream_grid_tx
+        Generic (
+            GRID_SIZE       : natural := 6;
+            CHANNEL_COUNT   : natural := 3;
+            GRADIENT_BITS   : natural := 8
+        );
+        Port (
+            Aclk     : in std_logic;
+            Aresetn  : in std_logic;
+            Stream_Data     : out std_logic_vector(GRADIENT_BITS-1 downto 0);
+            Stream_Valid    : out boolean;
+            Stream_Ready    : in boolean;
+            Grid_Data : in GridType(
+                1 to GRID_SIZE,
+                1 to GRID_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS - 1 downto 0);
+            Transfer_Complete   : in boolean
+        );
+    end component;
+
+    component stream_grid_rx
+        Generic (
+            GRID_SIZE       : natural := 6;
+            CHANNEL_COUNT   : natural := 3;
+            GRADIENT_BITS   : natural := 8
+        );
+        Port (
+            Aclk     : in std_logic;
+            Aresetn  : in std_logic;
+            Stream_Data     : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+            Stream_Valid    : in boolean;
+            Stream_Ready    : out boolean;
+            Grid_Data : out GridType(
+                1 to GRID_SIZE,
+                1 to GRID_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS - 1 downto 0);
+            Transfer_Complete   : in boolean
         );
     end component;
 

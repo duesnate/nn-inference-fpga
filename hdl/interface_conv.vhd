@@ -27,7 +27,6 @@ use xil_defaultlib.mypackage.ALL;
 
 entity interface_conv is
     Generic(
-        FOLDING         : boolean := TRUE;
         IMAGE_SIZE      : natural := 6;
         KERNEL_SIZE     : natural := 3;
         CHANNEL_COUNT   : natural := 3;
@@ -84,41 +83,22 @@ begin
         end generate gen_feature_col;
     end generate gen_feature_row;
 
-    gen_conv : if FOLDING generate
-        folded_conv_00 : folded_conv
-            generic map (
-                IMAGE_SIZE      => IMAGE_SIZE,
-                KERNEL_SIZE     => KERNEL_SIZE,
-                CHANNEL_COUNT   => CHANNEL_COUNT,
-                GRADIENT_BITS   => GRADIENT_BITS,
-                STRIDE_STEPS    => STRIDE_STEPS,
-                ZERO_PADDING    => ZERO_PADDING
-            )
-            port map (
-                Aclk            => Aclk,
-                Aresetn         => Aresetn,
-                Input_Image     => Input_Image_i,
-                Kernel_Weights  => Kernel_Weights_i,
-                Feature_Map     => Feature_Map_i
-            );
-    else generate
-        convolution_00 : convolution
-            generic map (
-                IMAGE_SIZE      => IMAGE_SIZE,
-                KERNEL_SIZE     => KERNEL_SIZE,
-                CHANNEL_COUNT   => CHANNEL_COUNT,
-                GRADIENT_BITS   => GRADIENT_BITS,
-                STRIDE_STEPS    => STRIDE_STEPS,
-                ZERO_PADDING    => ZERO_PADDING
-            )
-            port map (
-                Aclk            => Aclk,
-                Aresetn         => Aresetn,
-                Input_Image     => Input_Image_i,
-                Kernel_Weights  => Kernel_Weights_i,
-                Feature_Map     => Feature_Map_i
-            );
-    end generate gen_conv;
+    convolution_00 : convolution
+        generic map (
+            IMAGE_SIZE      => IMAGE_SIZE,
+            KERNEL_SIZE     => KERNEL_SIZE,
+            CHANNEL_COUNT   => CHANNEL_COUNT,
+            GRADIENT_BITS   => GRADIENT_BITS,
+            STRIDE_STEPS    => STRIDE_STEPS,
+            ZERO_PADDING    => ZERO_PADDING
+        )
+        port map (
+            Aclk            => Aclk,
+            Aresetn         => Aresetn,
+            Input_Image     => Input_Image_i,
+            Kernel_Weights  => Kernel_Weights_i,
+            Feature_Map     => Feature_Map_i
+        );
 
 end Behavioral;
 
