@@ -188,7 +188,8 @@ package mypackage is
                 1 to GRID_SIZE,
                 1 to CHANNEL_COUNT
                 ) (GRADIENT_BITS - 1 downto 0);
-            Transfer_Complete   : in boolean
+            Transfer_Complete   : in boolean;
+            Stream_Complete     : out boolean
         );
     end component;
 
@@ -209,7 +210,8 @@ package mypackage is
                 1 to GRID_SIZE,
                 1 to CHANNEL_COUNT
                 ) (GRADIENT_BITS - 1 downto 0);
-            Transfer_Complete   : in boolean
+            Transfer_Complete   : in boolean;
+            Stream_Complete     : out boolean
         );
     end component;
 

@@ -33,7 +33,8 @@ entity folded_conv is
         CHANNEL_COUNT   : natural := 3;     -- Ch
         GRADIENT_BITS   : natural := 8;     -- B
         STRIDE_STEPS    : natural := 1;     -- S
-        ZERO_PADDING    : integer := 0      -- P
+        ZERO_PADDING    : integer := 0;     -- P
+        RELU_ACTIVATION : boolean := TRUE
         -- Feature Size: F = (I+2*P-K)/S + 1
         -- Clock Cycles: C = Ch*F**2
     );
@@ -109,8 +110,10 @@ architecture Behavioral of folded_conv is
     signal conv_chn : integer range Conv_Feature'range(3);
 
     -- Data-flow control signals
+    signal image_complete       : boolean;
+    signal kernel_complete      : boolean;
     signal convolution_complete : boolean;
-    signal all_iters_complete   : boolean;
+    signal feature_complete     : boolean;
     signal transfer_complete    : boolean;
 
 begin
@@ -126,15 +129,14 @@ begin
         elsif rising_edge(Aclk) then
             if transfer_complete then
                 transfer_complete <= FALSE;
-            elsif all_iters_complete and Kernel_Valid and Image_Valid and Feature_Ready then
-                Conv_Kernel <= Input_Kernel;
-                Conv_Image <= Input_Image;
-                Output_Feature <= Conv_Feature;
+            elsif image_complete and kernel_complete and convolution_complete and feature_complete then
+                Conv_Kernel     <= Input_Kernel;
+                Conv_Image      <= Input_Image;
+                Output_Feature  <= Conv_Feature;
                 transfer_complete <= TRUE;
             end if;
         end if;
     end process;
-    all_iters_complete <= (not Image_Ready) and (not Kernel_Ready) and convolution_complete and (not Feature_Valid);
     --------------------------------------------------
 
     ---------------- RX in image grid ----------------
@@ -151,7 +153,8 @@ begin
             Stream_Valid        => Image_Valid,
             Stream_Ready        => Image_Ready,
             Grid_Data           => Input_Image,
-            Transfer_Complete   => transfer_complete
+            Transfer_Complete   => transfer_complete,
+            Stream_Complete     => image_complete
             );
     --------------------------------------------------
 
@@ -169,7 +172,8 @@ begin
             Stream_Valid        => Kernel_Valid,
             Stream_Ready        => Kernel_Ready,
             Grid_Data           => Input_Kernel,
-            Transfer_Complete   => transfer_complete
+            Transfer_Complete   => transfer_complete,
+            Stream_Complete     => kernel_complete
             );
     --------------------------------------------------
 
@@ -196,6 +200,7 @@ begin
         variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
     begin
         if Aresetn = '0' then
+            convolution_complete <= FALSE;
             Conv_Feature <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
             feature_sum := (others => '0');
@@ -213,17 +218,25 @@ begin
                     -------------------------------
                 end loop;
             end loop;
+            -- Apply ReLU activation
+            if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
+                feature_sum := (others => '0');
+            end if;
             -- Scale down Result
             Conv_Feature(conv_row, conv_col, conv_chn) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+            -------------------------
+            if (not convolution_complete) and (conv_row = Conv_Feature'high(1)) and (conv_col = Conv_Feature'high(2)) and (conv_chn = Conv_Feature'high(3)) then
+                convolution_complete <= TRUE;
+            elsif transfer_complete then
+                convolution_complete <= FALSE;
+            end if;
         end if;
     end process;
-
-    convolution_complete <= TRUE when conv_row + conv_col + conv_chn = 3 and not transfer_complete else FALSE;
 
     -- Convolution folding iterator state machine
     iterator_conv_folding : grid_iterator
         generic map (
-            GRID_SIZE    => Conv_Feature'high(1),
+            GRID_SIZE       => Conv_Feature'high(1),
             CHANNEL_COUNT   => Conv_Feature'high(3)
             )
         port map (
@@ -237,7 +250,7 @@ begin
     --------------------------------------------------
 
     -------------- TX out feature grid ---------------
-    grid_tx_kernel : stream_grid_tx
+    grid_tx_feature : stream_grid_tx
         generic map(
             GRID_SIZE       => Output_Feature'high(1),
             CHANNEL_COUNT   => Output_Feature'high(3),
@@ -250,7 +263,8 @@ begin
             Stream_Valid        => Feature_Valid,
             Stream_Ready        => Feature_Ready,
             Grid_Data           => Output_Feature,
-            Transfer_Complete   => transfer_complete
+            Transfer_Complete   => transfer_complete,
+            Stream_Complete     => feature_complete
             );
     --------------------------------------------------
 

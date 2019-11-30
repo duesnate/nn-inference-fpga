@@ -52,12 +52,15 @@ begin
     process(Aclk, Aresetn)
     begin
         if Aresetn = '0' then
+            Output_Feature <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
             for row in Input_Feature'range(1) loop
                 for col in Input_Feature'range(2) loop
                     for channel in Input_Feature'range(3) loop
                         if to_integer(Input_Feature(row, col, channel)) < 0 then
-                            Output_Feature(row, col, channel) <= - Input_Feature(row, col, channel);
+                            Output_Feature(row, col, channel) <= (others => '0');
+                        else
+                            Output_Feature(row, col, channel) <= Input_Feature(row, col, channel);
                         end if;
                     end loop;
                 end loop;

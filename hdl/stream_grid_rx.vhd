@@ -45,7 +45,8 @@ entity stream_grid_rx is
             1 to CHANNEL_COUNT
             ) (GRADIENT_BITS - 1 downto 0);
         -- Control
-        Transfer_Complete   : in boolean
+        Transfer_Complete   : in boolean;
+        Stream_Complete     : out boolean
     );
 end stream_grid_rx;
 
@@ -61,11 +62,20 @@ begin
     process(Aclk, Aresetn)
     begin
         if Aresetn = '0' then
+            Stream_Complete <= FALSE;
             Grid_Data <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
+            -------------------------
             if not grid_hold then
                 Grid_Data(grid_row, grid_col, grid_chn) <= signed(Stream_Data);
             end if;
+            -------------------------
+            if (not Stream_Complete) and (grid_row = Grid_Data'high(1)) and (grid_col = Grid_Data'high(2)) and (grid_chn = Grid_Data'high(3)) then
+                Stream_Complete <= TRUE;
+            elsif Transfer_Complete then
+                Stream_Complete <= FALSE;
+            end if;
+            -------------------------
         end if;
     end process;
 
@@ -82,8 +92,8 @@ begin
             column  => grid_col,
             channel => grid_chn
             );
-
-    Stream_Ready  <= FALSE when grid_row + grid_col + grid_chn = 3 and not Transfer_Complete else TRUE;
-    grid_hold     <= FALSE when Stream_Valid and Stream_Ready else TRUE;
+    
+    Stream_Ready <= Transfer_Complete or (not Stream_Complete);
+    grid_hold    <= (not Stream_Valid) or (not Stream_Ready);
 
 end Behavioral;
