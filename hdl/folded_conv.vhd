@@ -58,8 +58,8 @@ end folded_conv;
 
 architecture Behavioral of folded_conv is
 
-    -- Prevents overflow during summation
-    constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2))));
+    -- Prevents overflow during summation (subtract one because signed)
+    constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
 
     signal Input_Image : GridType(
         1 to IMAGE_SIZE,
@@ -103,6 +103,11 @@ architecture Behavioral of folded_conv is
         1 to CHANNEL_COUNT
         ) (GRADIENT_BITS - 1 downto 0);
     
+    -- MAC iterator signals
+    signal mac_hold : boolean;
+    signal mac_row  : integer range Conv_Kernel'range(1);
+    signal mac_col  : integer range Conv_Kernel'range(2);
+
     -- Convolution iterator signals
     signal conv_hold : boolean;
     signal conv_row : integer range Conv_Feature'range(1);
@@ -201,37 +206,61 @@ begin
     begin
         if Aresetn = '0' then
             convolution_complete <= FALSE;
+            feature_sum := (others => '0');
             Conv_Feature <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
-            feature_sum := (others => '0');
-            for row in Conv_Kernel'range(1) loop
-                for column in Conv_Kernel'range(2) loop
-                    ----- Multiply Accumulate -----
-                    feature_sum := feature_sum
-                        -- Add Input Neuron
-                        + Padded_Image(
-                            STRIDE_STEPS * (conv_row - 1) + row, 
-                            STRIDE_STEPS * (conv_col - 1) + column, 
-                            conv_chn)
-                        -- Multiplied by Kernel Weight
-                        * Conv_Kernel(row, column, conv_chn);
-                    -------------------------------
-                end loop;
-            end loop;
-            -- Apply ReLU activation
-            if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
-                feature_sum := (others => '0');
-            end if;
-            -- Scale down Result
-            Conv_Feature(conv_row, conv_col, conv_chn) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
-            -------------------------
-            if (not convolution_complete) and (conv_row = Conv_Feature'high(1)) and (conv_col = Conv_Feature'high(2)) and (conv_chn = Conv_Feature'high(3)) then
-                convolution_complete <= TRUE;
+            if not convolution_complete then
+                ----- Multiply Accumulate -----
+                feature_sum := feature_sum
+                    -- Add Input Neuron
+                    + Padded_Image(
+                        STRIDE_STEPS * (conv_row - 1) + mac_row, 
+                        STRIDE_STEPS * (conv_col - 1) + mac_col, 
+                        conv_chn)
+                    -- Multiplied by Kernel Weight
+                    * Conv_Kernel(mac_row, mac_col, conv_chn);
+                -------------------------------
+                if not conv_hold then
+                    -- Apply ReLU activation
+                    if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
+                        Conv_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
+                    else
+                        -- Scale down Result
+                        Conv_Feature(conv_row, conv_col, conv_chn) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+                    end if;
+                    feature_sum := (others => '0');
+                    -- Check if convolution is complete
+                    if mac_hold then
+                        convolution_complete <= TRUE;
+                    end if;
+                end if;
+                -------------------------------
             elsif transfer_complete then
                 convolution_complete <= FALSE;
             end if;
         end if;
     end process;
+
+    -- MAC folding iterator state machine
+    iterator_mac_folding : grid_iterator
+        generic map (
+            GRID_SIZE       => Conv_Kernel'high(1),
+            CHANNEL_COUNT   => 1
+            )
+        port map (
+            Aclk    => Aclk,
+            Aresetn => Aresetn,
+            hold    => mac_hold,
+            row     => mac_row,
+            column  => mac_col,
+            channel => open
+            );
+    mac_hold <= (convolution_complete and (not transfer_complete))
+            or ((mac_row = Conv_Kernel'high(1)) 
+            and (mac_col = Conv_Kernel'high(2)) 
+            and (conv_row = Conv_Feature'high(1)) 
+            and (conv_col = Conv_Feature'high(2)) 
+            and (conv_chn = Conv_Feature'high(3)));
 
     -- Convolution folding iterator state machine
     iterator_conv_folding : grid_iterator
@@ -242,11 +271,12 @@ begin
         port map (
             Aclk    => Aclk,
             Aresetn => Aresetn,
-            hold    => convolution_complete,
+            hold    => conv_hold,
             row     => conv_row,
             column  => conv_col,
             channel => conv_chn
             );
+    conv_hold <= (not ((mac_row = Conv_Kernel'high(1)) and (mac_col = Conv_Kernel'high(2)))) or convolution_complete;
     --------------------------------------------------
 
     -------------- TX out feature grid ---------------

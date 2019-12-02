@@ -32,7 +32,8 @@ entity wrap_folded_conv is
         CHANNEL_COUNT : natural := 3;
         GRADIENT_BITS : natural := 8;
         STRIDE_STEPS  : natural := 1;
-        ZERO_PADDING  : integer := 0
+        ZERO_PADDING  : integer := 0;
+        RELU_ACTIVATION : boolean
         );
     port (
         Aclk           : in std_logic;
@@ -59,7 +60,8 @@ begin
             CHANNEL_COUNT   => CHANNEL_COUNT,
             GRADIENT_BITS   => GRADIENT_BITS,
             STRIDE_STEPS    => STRIDE_STEPS,
-            ZERO_PADDING    => ZERO_PADDING
+            ZERO_PADDING    => ZERO_PADDING,
+            RELU_ACTIVATION => RELU_ACTIVATION
             )
         port map (
             Aclk           => Aclk,

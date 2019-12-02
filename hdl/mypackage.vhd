@@ -46,7 +46,8 @@ package mypackage is
             CHANNEL_COUNT   : natural := 3;
             GRADIENT_BITS   : natural := 8;
             STRIDE_STEPS    : natural := 1;
-            ZERO_PADDING    : integer := 0
+            ZERO_PADDING    : integer := 0;
+            RELU_ACTIVATION : boolean
         );
         Port (
             Aclk           : in std_logic;
