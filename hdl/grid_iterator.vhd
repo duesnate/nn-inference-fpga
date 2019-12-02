@@ -43,55 +43,32 @@ end grid_iterator;
 
 architecture Behavioral of grid_iterator is
 
-    type stateType is (CHN_STATE, COL_STATE, ROW_STATE);
-
-    signal iter_state   : stateType;
-    signal row_iter     : integer range 1 to GRID_SIZE;
-    signal col_iter     : integer range 1 to GRID_SIZE;
-    signal chn_iter     : integer range 1 to CHANNEL_COUNT;
-
 begin
-
-    row     <= row_iter;
-    column  <= col_iter;
-    channel <= chn_iter;
 
     process(Aclk, Aresetn)
     begin
         if Aresetn = '0' then
-            iter_state <= CHN_STATE;
-            row_iter <= 1;
-            col_iter <= 1;
-            chn_iter <= 1;
+            row <= 1;
+            column <= 1;
+            channel <= 1;
         elsif rising_edge(Aclk) then
             -- Pause iterations while hold is asserted
             if not hold then 
-                case iter_state is
-                    when CHN_STATE => 
-                        if chn_iter >= CHANNEL_COUNT then 
-                            chn_iter <= 1;
-                            iter_state <= COL_STATE;
+                if channel >= CHANNEL_COUNT then
+                    if column >= GRID_SIZE then
+                        if row >= GRID_SIZE then
+                            row <= 1;
                         else
-                            chn_iter <= chn_iter + 1;
+                            row <= row + 1;
                         end if;
-                    when COL_STATE =>
-                        if col_iter >= GRID_SIZE then 
-                            col_iter <= 1;
-                            iter_state <= ROW_STATE;
-                        else 
-                            col_iter <= col_iter + 1;
-                            iter_state <= CHN_STATE;
-                        end if;
-                    when ROW_STATE =>
-                        if row_iter >= GRID_SIZE then 
-                            row_iter <= 1;
-                        else 
-                            row_iter <= row_iter + 1;
-                        end if;
-                        iter_state <= CHN_STATE;
-                    when others => 
-                        iter_state <= CHN_STATE;
-                end case;
+                        column <= 1;
+                    else
+                        column <= column + 1;
+                    end if;
+                    channel <= 1;
+                else
+                    channel <= channel + 1;
+                end if;
             end if;
         end if;
     end process;
