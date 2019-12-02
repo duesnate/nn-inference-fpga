@@ -167,7 +167,7 @@ A surprisingly large number of frameworks have already been developed - mostly t
 My Design and Implementation
 ============================
 
-My design uses VHDL as the hardware description programming language. In order to make use of this code, the tools must support the IEEE VHDL-2008 standard. Vivado 2019.1 supports some but not all of the features provided by VHDL-2008. Multi-dimensional arrays of three dimensions were successfully synthesized using the Vivado IDE. Vivado does not, however, support simulation for these three-dimensional arrays. In addtion, Vivado does not allow modules defined as VHDL-2008 to be dropped into its block designs which are commonly used in Vivado design methodologies as the design's top layer definition. VHDL-2008 modules can be wrapped inside other modules that are defined as the default VHDL type prior to instantiation into the block design.
+My design uses VHDL as the hardware description programming language. In order to make use of this code, the tools must support the IEEE VHDL-2008 standard. Vivado 2019.1 supports some but not all of the features provided by VHDL-2008. Multi-dimensional arrays of three dimensions were successfully synthesized using the Vivado IDE. Vivado does not, however, support simulation for these three-dimensional arrays. In addtion, Vivado does not allow modules defined as VHDL-2008 to be dropped into block designs which are commonly used in Vivado design methodologies as the design's top layer definition. VHDL-2008 modules can be wrapped inside other modules that are defined as the default VHDL type prior to instantiation into the block design.
 
 Custom Types
 ------------
@@ -185,9 +185,11 @@ GridType is used to represent a single image or kernel as a three-dimensional ar
 Convolution
 -----------
 
-The goal of this convolution module design is to realize a highly modular and scalable building block that can be used to define a variety of convolutional layer types by using generic parameters that are selected pre-synthesis. These parameters allow the module to support any image size or input feature map of three or less dimensions. Bit resolution for color gradient values may also be customized. The dimensions of the output feature map is calculated automatically.
+The goal of this first convolution module design is to realize a highly modular and scalable building block that can be used to define a variety of convolutional layer types by using generic parameters that are selected pre-synthesis. These parameters allow the module to support any image size or input feature map of three or less dimensions. These three dimensions represent the number of rows, columns and channels. Bit resolution for color gradient values may also be customized. The dimensions of the output feature map is calculated automatically.
 
-This module was designed as a fully loop-unrolled single-clock convolution accelerator. This means that a successful implementation run will process one full image (or feature map) input in just one clock cycle. If desired, all kernal weights can be updated for every image that is processed. The obvious drawback to this fully parallelized implementation is the high utilization of logic slice look-up tables (LUTs). Feasability and limitations of its full implementation including place-and-route is still under analysis.
+This module was designed as a fully loop-unrolled single-clock convolution accelerator. This means that a successful implementation-run will process one full image (or feature map) input in just one clock cycle. If desired, all kernal weights can be updated for every image that is processed. The obvious drawback to this fully parallelized implementation is the high utilization of logic slice look-up tables (LUTs). Feasability and limitations of its full implementation including place-and-route is still under analysis.
+
+Due to the redundency of convolution operations, the "for loop" VHDL construct was applied to facilitate replication of MAC operations. Unlike software programming langues which use "for loops" to repeat a sequence of operations, VHDL will replicate MAC logic for each iteration of the loop. Multidimensional arrays along with looping constructs provide the ability for less repetitive and much more compact code. In addition to image size, generic inputs provide customization of additional features such as stride length as well as zero-padding. If selected, zero-padding is applied to the input data using the generate operation. The looping constructs within the main process were also convenient for adding custom stride length options. 
 
 Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
 
@@ -210,64 +212,105 @@ TODO:
 
 .. code-block:: VHDL
 
-  library IEEE;
-  use IEEE.STD_LOGIC_1164.ALL;
-  use IEEE.NUMERIC_STD.ALL;
-  library xil_defaultlib;
-  use xil_defaultlib.mypackage.ALL;
+	library IEEE;
+	use IEEE.STD_LOGIC_1164.ALL;
+	use IEEE.NUMERIC_STD.ALL;
+	use IEEE.math_real.all;
+	library xil_defaultlib;
+	use xil_defaultlib.mypackage.ALL;
 
-  entity convolution is
-    Generic(
-      IMAGE_SIZE      : natural := 6;
-      KERNEL_SIZE     : natural := 3;
-      CHANNEL_COUNT   : natural := 3
-    );
-    Port (  
-      Aclk            : in std_logic;
-      Aresetn         : in std_logic;
-      Input_Image     : in 
-        GridType(1 to IMAGE_SIZE, 1 to IMAGE_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
-      Kernel_Weights  : in 
-        GridType(1 to KERNEL_SIZE, 1 to KERNEL_SIZE, 1 to CHANNEL_COUNT)(7 downto 0);
-      Feature_Map     : out 
-        GridType( 1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
-            1 to (IMAGE_SIZE-KERNEL_SIZE+1), 
-            1 to CHANNEL_COUNT)(15 downto 0)
-    );
-  end convolution;
+	entity convolution is
+	  Generic(
+	    IMAGE_SIZE      : natural := 6;
+	    KERNEL_SIZE     : natural := 3;
+	    CHANNEL_COUNT   : natural := 3;
+	    GRADIENT_BITS   : natural := 8;
+	    STRIDE_STEPS    : natural := 1;
+	    ZERO_PADDING    : integer := 0
+	  );
+	  Port (  
+	    Aclk            : in std_logic;
+	    Aresetn         : in std_logic;
+	    Input_Image     : in GridType(  
+	      1 to IMAGE_SIZE,
+	      1 to IMAGE_SIZE,
+	      1 to CHANNEL_COUNT
+	      ) (GRADIENT_BITS - 1 downto 0);
+	    Kernel_Weights  : in GridType(  
+	      1 to KERNEL_SIZE,
+	      1 to KERNEL_SIZE,
+	      1 to CHANNEL_COUNT
+	      ) (GRADIENT_BITS - 1 downto 0);
+	    Feature_Map     : out GridType( 
+	      1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+	      1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+	      1 to CHANNEL_COUNT
+	      ) (GRADIENT_BITS - 1 downto 0)
+	  );
+	end convolution;
 
-  architecture Behavioral of convolution is
-  begin
+	architecture Behavioral of convolution is
 
-    process(Aclk, Aresetn)
-      variable var_feature 
-        : GridType(Feature_Map'range(1), Feature_Map'range(2), Feature_Map'range(3))(15 downto 0);
-    begin
-      var_feature := (others => (others => (others => (others => '0'))));
-      if Aresetn = '0' then
-        Feature_Map <= (others => (others => (others => (others => '0'))));
-      elsif rising_edge(Aclk) then
-        for row_iter in Feature_Map'range(1) loop
-          for col_iter in Feature_Map'range(2) loop
-            for row in Kernel_Weights'range(1) loop
-              for column in Kernel_Weights'range(2) loop
-                for channel in 1 to CHANNEL_COUNT loop
-                  var_feature(row_iter, col_iter, channel) := (
-                    var_feature(row_iter, col_iter, channel) + (
-                      Input_Image(row + row_iter - 1, column + col_iter - 1, channel) * 
-                      Kernel_Weights(row, column, channel)
-                    )
-                  );
-                end loop;
-              end loop;
-            end loop;
-          end loop;
-        end loop;
-        Feature_Map <= var_feature;
-      end if;
-    end process;
+	  -- Prevents overflow during summation (subtract one because signed)
+	  constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
 
-  end Behavioral;
+	  signal Image_Padded : GridType(
+	    1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+	    1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+	    1 to CHANNEL_COUNT
+	    ) (GRADIENT_BITS - 1 downto 0);
+
+	begin
+
+	  -- Generate zero-padded image
+	  gen_row: for row in Image_Padded'range(1) generate
+	    gen_col: for col in Image_Padded'range(2) generate
+	      gen_chl: for channel in Image_Padded'range(3) generate
+	        -- Fill with input image when out of padding range
+	        gen_zp: if  (row > ZERO_PADDING) and 
+	              (col > ZERO_PADDING) and 
+	              (row <= Image_Padded'high(1)-ZERO_PADDING) and 
+	              (col <= Image_Padded'high(2)-ZERO_PADDING) generate
+	          Image_Padded(row, col, channel) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, channel);
+	        else generate
+	          Image_Padded(row, col, channel) <= (others => '0');
+	        end generate gen_zp;
+	      end generate gen_chl;
+	    end generate gen_col;
+	  end generate gen_row;
+
+	  process(Aclk, Aresetn)
+	    variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
+	  begin
+	    if Aresetn = '0' then
+	      Feature_Map <= (others => (others => (others => (others => '0'))));
+	    elsif rising_edge(Aclk) then
+	      for row_iter in Feature_Map'range(1) loop
+	        for col_iter in Feature_Map'range(2) loop
+	          for channel in Feature_Map'range(3) loop
+	            -- Clear summation
+	            feature_sum := (others => '0');
+	            for row in Kernel_Weights'range(1) loop
+	              for column in Kernel_Weights'range(2) loop
+	                feature_sum := feature_sum
+	                  -- Add Input Image
+	                  + Image_Padded(
+	                    STRIDE_STEPS * (row_iter - 1) + row, 
+	                    STRIDE_STEPS * (col_iter - 1) + column, 
+	                    channel)
+	                  -- Multiplied by Kernel Weight
+	                  * Kernel_Weights(row, column, channel);
+	              end loop;
+	            end loop;
+	            -- Scale down Result
+	            Feature_Map(row_iter, col_iter, channel) 
+	            	<= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+	          end loop;
+	        end loop;
+	      end loop;
+	    end if;
+	  end process;
+	end Behavioral;
 
 .. figure:: figs/convolution_elaborated_00-1.png
 
@@ -286,6 +329,11 @@ TODO:
 +-------------------------------------------------------+------+-----------+---------------+
 | Register as Latch                                     | 0    | 35200     | 0.00          |
 +-------------------------------------------------------+------+-----------+---------------+
+
+Folded Convolution
+------------------
+
+It very quickly became apparent that a fully-unrolled convolution block is not a sustainable method for large convolution models. In order to allieviate utilization, folding of MAC operations over multiple clocks was the next step. Unfortunately, VHDL does not provide the ability to extend iterative loops over multiple clocks cycles. I decided to develop my own iterator module which can be instantiated for any scenario that requires iterating through the multi-dimensional "GridType" signals over multiple clocks. The design quickly became much more complex when facilitating folding operations over multiple clocks and organizing data-flow in a way that will maximize efficiency. Additional control logic and signals were required for coordination between the convolution process and the input/output data streams. Two designs were developed and tested to observe how folding of MAC operations would affect FPGA utilization. The first design applied folding such that each kernel step required its own clock cycle. This extended the convolution operation over a number of clocks equal to the number of neurons in the feature-map output. For example, an 8x8 3-channel input with a 3x3 kernel would require 3*(8-3+1)^2 = 108 clocks. The 3x3 kernel requires the instantiation of 9 multipliers and 8 adders to perform the MAC operation. By time-multiplexing MAC operations over the same resources, this design provided great resource usage improvements. Large kernels, however, will continue to prove difficult for resource constrained applications as well as for timing closure. The next design addresses this issue by further folding of convolution provided a single clock to each multiply and sum operation.
 
 
 Performance Evaluation
