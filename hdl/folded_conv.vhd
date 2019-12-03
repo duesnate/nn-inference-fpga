@@ -124,7 +124,7 @@ architecture Behavioral of folded_conv is
 begin
 
     --------------- Data-flow controller -------------
-    process(Aclk, Aresetn)
+    process_dataflow_control : process(Aclk, Aresetn)
     begin
         if Aresetn = '0' then
             transfer_complete <= FALSE;
@@ -183,11 +183,11 @@ begin
     --------------------------------------------------
 
     ----------- Generate zero-padded image -----------
-    gen_row: for row in Padded_Image'range(1) generate
-        gen_col: for col in Padded_Image'range(2) generate
-            gen_chl: for chn in Padded_Image'range(3) generate
+    gen_row : for row in Padded_Image'range(1) generate
+        gen_col : for col in Padded_Image'range(2) generate
+            gen_chn : for chn in Padded_Image'range(3) generate
                 -- Fill with input image when out of padding range
-                gen_zp: if  (row > ZERO_PADDING) and 
+                gen_zp : if  (row > ZERO_PADDING) and 
                             (col > ZERO_PADDING) and 
                             (row <= Padded_Image'high(1) - ZERO_PADDING) and 
                             (col <= Padded_Image'high(2) - ZERO_PADDING) generate
@@ -195,13 +195,13 @@ begin
                 else generate
                     Padded_Image(row, col, chn) <= (others => '0');
                 end generate gen_zp;
-            end generate gen_chl;
+            end generate gen_chn;
         end generate gen_col;
     end generate gen_row;
     --------------------------------------------------
 
     --------------- Compute convolution --------------
-    process(Aclk, Aresetn)
+    convolution_process : process(Aclk, Aresetn)
         variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
     begin
         if Aresetn = '0' then

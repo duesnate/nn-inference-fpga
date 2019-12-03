@@ -14,6 +14,11 @@ The purpose of this project is to explore the topic of neural network inference 
 The primary application of NN models in this project will be for image recognition and will focus primarily on the inference of convolutional neural networks (CNN). The first part of this report will summarize the current state of research and the advancements that have been made for FPGA inference. The project also seeks to determine whether FPGAs have potential to compete as an effective alternative to GPUs as well as to determine the characteristics of an effective use case. Metrics of evaluation include cost, peak performance capability, energy efficiency, performance density, as well as other capabilities such as adaptability. The report will break down the various components used in a typical CNN model and describe how they can be implemented in programmable logic (PL). These functional blocks include units for convolution, fully connected (FC) layers, pooling operations, and non-linear activation functions. Outside of the NN itself there will be additional PL infrastructure that may include direct memory access (DMA) cores, a state-machine or control unit (CU), as well as a memory-mapped interface to the processing system (PS). Additional supporting components may be included depending on the architectures used for implementing the model.
 
 
+
+
+
+
+
 Components
 ==========
 
@@ -22,7 +27,7 @@ Convolutional Block
 
 In order to understand the interface of a convolutional block used in image classification, we must first understand the format of an input image. An RGB color image consist of a grid of pixels where each pixel has three associated intensity values for red, green, and blue. We therefore describe RGB images as having three channels. Typically these color values will have 8-bit precision per color to provide 256 levels of intensity. For example, a 32x32 RGB image will have 1024 pixels and will consist of 3072 bytes. The input description for the first convolution operation using the example can be described as a 32x32x3 three-dimensional grid of 8-bit values.
 
-The convolution operation consists primarily of the multiply-accumulate (MAC) operation. The trained weights of a CNN are realized using what is called a "kernel" which is just a square grid of trained weight values that is smaller in dimension than the input image. It is important to note that when working with 3-channel RGB images, a unique kernel grid must exist for each color-channel resulting in a 3-dimensional MxNx3 shaped kernel. This grid of weights functions as a sliding filter that moves over the image where in each iteration it is convolved with an equally sized sub-section of the input image. For each iterative location of the kernel, the image grid and kernel grid are multiplied element-wise. The resulting product from each pixel-weight multiplication is then summed together respective of their color-channel to produce a scalar output. In a model for RGB images there will be three scalar values that correspond to each iteration of the applied kernel location. For the next iteration the kernel is shifted over the image by one pixel such that it covers a slightly different portion of the input. This process is repeated until all rows and columns of the image's grid-space have been convolved. The scalar outputs are then organized respectively to form a new grid of values called the "feature map". This feature map is then passed forward to the next operation in the network. Described above is the most basic form of the convolution operation. There are additional features that are commonly used in convolutional blocks that can typically be activated and adjusted by selecting parameters. In some situations it may be desirable to apply zero-padding to the convolution operation by surrounding the input image borders with zero-valued pixels. Applying zero-padding of size one will increase the input dimensions of the image by two in both vertical and horizontal dimensions (example: 6x6 grid becomes 8x8). Another common parameter used in convolution operations is stride length which typically by default is set to one. Stride length controls the number of pixels in which the kernel will shift over the image for each iteration. Stride length can be increased to effectively downsample and thus reduce the size of the output feature map.
+The convolution operation consists primarily of the multiply-accumulate (MACC) operation. The trained weights of a CNN are realized using what is called a "kernel" which is just a square grid of trained weight values that is smaller in dimension than the input image. It is important to note that when working with 3-channel RGB images, a unique kernel grid must exist for each color-channel resulting in a 3-dimensional MxNx3 shaped kernel. This grid of weights functions as a sliding filter that moves over the image where in each iteration it is convolved with an equally sized sub-section of the input image. For each iterative location of the kernel, the image grid and kernel grid are multiplied element-wise. The resulting product from each pixel-weight multiplication is then summed together respective of their color-channel to produce a scalar output. In a model for RGB images there will be three scalar values that correspond to each iteration of the applied kernel location. For the next iteration the kernel is shifted over the image by one pixel such that it covers a slightly different portion of the input. This process is repeated until all rows and columns of the image's grid-space have been convolved. The scalar outputs are then organized respectively to form a new grid of values called the "feature map". This feature map is then passed forward to the next operation in the network. Described above is the most basic form of the convolution operation. There are additional features that are commonly used in convolutional blocks that can typically be activated and adjusted by selecting parameters. In some situations it may be desirable to apply zero-padding to the convolution operation by surrounding the input image borders with zero-valued pixels. Applying zero-padding of size one will increase the input dimensions of the image by two in both vertical and horizontal dimensions (example: 6x6 grid becomes 8x8). Another common parameter used in convolution operations is stride length which typically by default is set to one. Stride length controls the number of pixels in which the kernel will shift over the image for each iteration. Stride length can be increased to effectively downsample and thus reduce the size of the output feature map.
 
 Implementing a convolution function in hardware is computationally expensive and will require a fair amount of processing resources. Convolution operations will typically consume the majority of the total utilized processing resources in CNN models. Intuitively, the convolution operations will occupy the majority of the utilized logic resources when implementing CNNs on FPGAs. 
 
@@ -47,6 +52,11 @@ Fully Connected Block
 The fully connected (FC) layer of a CNN is primarily used at the final stage of the network model and serves to transform feature maps into the final image classifications. Multiple FC layers can exist throughout the model as hidden layers. It is most common, however, for them to be instantiated in sequence of decreasing size at the end. The number of neurons used in each hidden layer can be adjusted during the design phase for optimizing performance. It is important to note though that the number of possible image classifications will determine the number of neurons in the final FC layer. Each classification label will be assigned to an output neuron and whichever neuron is most favored will be used as the network's prediction. As the name suggests, FC layers require that each neuron be connected to all the neurons of neighboring FC layers making them particularly resource costly. Each neuron requires a trained bias value as well as trained weights for each neuron in the following layer. This means a large overhead of trained values must be stored and made available to the model.
 
 
+
+
+
+
+
 Architecture
 ============
 
@@ -54,13 +64,19 @@ By creating generic operational blocks we can start to imagine simplified and ab
 
 Two broad categories of CNN architectures as stated in [Toolflows] include the streaming accelerator architecture and the single engine architecture. 
 
-**Streaming accelerator architectures** are characterized as having each of its layers individually instantiated in logic with parameters optimized for a specific model. Each layer will have data streaming out to the following operation while data from the preceeding stage will flow in. This happens for all layers concurrently such that utilization of the implemented resources is maximized. An advantage of the streaming approach is that feature data between operations does not require the use of off-chip memory access. This alleviates memory bandwidth while improving the achievable classification latency. 
+Streaming Accelerator Architectures
+-----------------------------------
+
+Streaming accelerator architectures are characterized as having each of its layers individually instantiated in logic with parameters optimized for a specific model. Each layer will have data streaming out to the following operation while data from the preceeding stage will flow in. This happens for all layers concurrently such that utilization of the implemented resources is maximized. An advantage of the streaming approach is that feature data between operations does not require the use of off-chip memory access. This alleviates memory bandwidth while improving the achievable classification latency. 
 
 .. figure:: figs/streaming_architecture.png
 
    Figure: Streaming Architecture Example
 
-**Single engine architectures**, as the name implies, take the form of a single powerful accelerated computation engine capable of executing each layer of the CNN model sequentially. This type of implementation can take on many variations but typically requires a control unit or finite-state machine (FSM) that moderates data-flow and schedules sequences of operation. The single engine will consist of an array of processing elements that support SIMD matrix operations for completing convolutions, non-linear functions, pooling and other required operations all in a single engine. One huge advantage of this approach is the potential for a single FPGA design to operate on many different model configurations and data sets without the need for re-programming. This allows for increased flexibility but at the cost of reduced resource utilization efficiency as well as consistency of performance results. Although simple models could get by with only on-chip memory (OCM) use, complex models will require significantly more access to off-chip memeory than a comparable streaming architecture. 
+Single Engine Architectures
+---------------------------
+
+Single engine architectures, as the name implies, take the form of a single powerful accelerated computation engine capable of executing each layer of the CNN model sequentially. This type of implementation can take on many variations but typically requires a control unit or finite-state machine (FSM) that moderates data-flow and schedules sequences of operation. The single engine will consist of an array of processing elements that support SIMD matrix operations for completing convolutions, non-linear functions, pooling and other required operations all in a single engine. One huge advantage of this approach is the potential for a single FPGA design to operate on many different model configurations and data sets without the need for re-programming. This allows for increased flexibility but at the cost of reduced resource utilization efficiency as well as consistency of performance results. Although simple models could get by with only on-chip memory (OCM) use, complex models will require significantly more access to off-chip memeory than a comparable streaming architecture. 
 
 .. figure:: figs/single_engine_architecture.png
 
@@ -70,6 +86,12 @@ Two broad categories of CNN architectures as stated in [Toolflows] include the s
 * Static vs. dynamic scheduling
 * ...
 
+
+
+
+
+
+
 FPGA vs. GPU
 ============
 
@@ -78,10 +100,18 @@ Although GPUs have been greatly beneficial for the advancement of DNN performanc
 * ...
 
 
+
+
+
+
+
 Techniques for Efficient Implementations
 ========================================
 
-**Data Quantization** is a technique that can provide a significant reduction in the required computation and memory resources as well as memory bandwidth. The extreme flexibility provided by FPGAs allows for customizing the data type and size to fit the application. CPUs and GPUs are designed with pre-determined precision. This means that on a 32-bit GPU, a small value operation that requires only 8-bit precision would still consume the full 32-bit operation resource. This inefficiency can be uniquely solved with the FPGA's ability to configure computation resouces using only the level of precision required. Many applications exist where high resolution computations do not provide measurable improvements in overall NN performance. In such cases, models can be implemented in FPGAs with reduced precision to provide benefits such as reduced power consumption, increased throughput, or additional resource and memory capacity for other operations. Take for example a model that inputs RGB images with 8-bit resolution per color channel. Using quantization, the 8-bit channel resolutions can be reduced down to 4-bits or even 2-bits to significantly reduce resource utilization. Alternatively, quantization could be applied to other image dimensions by reducing the pixel count or even through monochromatic conversion. In all cases, kernel weight parameters should be adjusted accordingly. Classification accuracy can be tested for each configuration to observe any degradation in performance.
+Data Quantization
+-----------------
+
+Data quantization is a technique that can provide a significant reduction in the required computation and memory resources as well as memory bandwidth. The extreme flexibility provided by FPGAs allows for customizing the data type and size to fit the application. CPUs and GPUs are designed with pre-determined precision. This means that on a 32-bit GPU, a small value operation that requires only 8-bit precision would still consume the full 32-bit operation resource. This inefficiency can be uniquely solved with the FPGA's ability to configure computation resouces using only the level of precision required. Many applications exist where high resolution computations do not provide measurable improvements in overall NN performance. In such cases, models can be implemented in FPGAs with reduced precision to provide benefits such as reduced power consumption, increased throughput, or additional resource and memory capacity for other operations. Take for example a model that inputs RGB images with 8-bit resolution per color channel. Using quantization, the 8-bit channel resolutions can be reduced down to 4-bits or even 2-bits to significantly reduce resource utilization. Alternatively, quantization could be applied to other image dimensions by reducing the pixel count or even through monochromatic conversion. In all cases, kernel weight parameters should be adjusted accordingly. Classification accuracy can be tested for each configuration to observe any degradation in performance.
 
 We evaluate the benefits of data quantization using an implementation of a fully unrolled convolution block; the design of this block is discussed later in the report. The convolution block was configured for single channel 3x3 inputs using 1-bit zero-padding and a 3x3 kernel to produce an output 3x3 feature map. Channel resolutions for both the image and kernel weights were adjusted for three seperate implementation runs. Resulting resource utilization is shown in the table below.
 
@@ -97,7 +127,10 @@ We evaluate the benefits of data quantization using an implementation of a fully
 
 The results of this test show significant savings in computation resource usage. Reducing bit-width from 8-bit to 4-bit provided a 73% reduction in LUTs and a 50% reduction in registers. Further quantization to 2-bit values provided a total of 93.3% reduction in LUTs and a 75% reduction in registers. It is evident that tremendous resource savings can be achieved using data quantization techniques. However, classification accuracy will need to be evaluated for the specific application to determine whether quantization is a viable option.
 
-**Binerized Neural Networks (BNN)** take data quantization to the extreme by reducing bit-widths to the minimum necessary. Fully binarized networks use single-bit values for both input and output activations as well for weights. FPGAs are especially well suited for optimizing these custom-type implementations given their ability to configure logic to use only the precision required. This means that common CNN operations such as convolution - requiring many MAC operations - become much less expensive. FINN is an open-source BNN tool developed by Xilinx Research Labs [ref] that is capable of implementing both fully-binarized and partially-binarized neural networks. Given the extreme level of quantization and resource savings, results have demonstrated impressive classification accuracy. More impressive, however, is the extremely high throughput and low latency that can be realized (see table). Their results demonstrate the potential efficiency of BNNs on FPGAs but also highlights some limitations of classification accuracy achieved when using large image models.
+Binarized Neural Networks
+-------------------------
+
+Binarized neural networks (BNN) take the concept of data quantization to the extreme by reducing bit-widths to the minimum necessary. Fully binarized networks use single-bit values for both input and output activations as well for weights. FPGAs are especially well suited for optimizing these custom-type implementations given their ability to configure logic to use only the precision required. This means that common CNN operations such as convolution - requiring many MACC operations - become much less expensive. FINN is an open-source BNN tool developed by Xilinx Research Labs [ref] that is capable of implementing both fully-binarized and partially-binarized neural networks. Given the extreme level of quantization and resource savings, results have demonstrated impressive classification accuracy. More impressive, however, is the extremely high throughput and low latency that can be achieved (see table). Their results demonstrate the potential efficiency of BNNs on FPGAs but also highlights limitations in classification accuracy when using large image models.
 
 +----------+----------------------------+---------+----------+
 | Dataset  | Throughput (Images/Second) | Latency | Accuracy |
@@ -118,11 +151,17 @@ The following summary describes the techniques FINN uses to implement a highly e
 		Threshold: \Tau_k^+ = \frac{|Tau_k + S_{Fan-In}}{2}
 	\]
 
-Using this training-weight derived, positive-only, threshold value, we can now apply an unsigned comparator on the sum and the threshold, obtaining a binary output. Thus, a simple comparator and a compile-time initialized constant can realize a binary batchnorm-activation using less than just 5% of the resources that would otherwise have been required. Lastly, FINN uses the simple logical OR operator to apply the max-pooling function on the results of the comparators. FINN shows that the vast majority of computations in a BNN can be synthesized down to nothing more than popcounters, comparators, and OR-gates. The paper goes on to describe the organizational architecture of their BNN which includes aggregating these operations into what they call matrix-vector-threshold units (MVTU). 
+Using this training-weight-derived positive-only threshold value, we can now apply an unsigned comparator on the sum and the threshold and obtain a binary output. Thus, a simple comparator and a compile-time initialized constant can realize a binary batchnorm-activation using less than just 5% of the resources that would otherwise have been required. Lastly, FINN uses the simple logical OR operator to apply the max-pooling function on the results of the comparators. FINN shows that the majority of computation in a BNN can be synthesized down to nothing more than popcounters, comparators, and OR-gates. The paper goes on to describe the organizational architecture of their BNN which includes aggregating these operations into what they call matrix-vector-threshold units (MVTU). 
 
-**Loop Unrolling** is a technique that has potential to both decrease a model's latency as well as increase its throughput capacity. Loop unrolling is what allows a design to capitalize on what FPGAs have been known to excel at. That is, parallel processing. As previously discussed, CNN models are primarily composed of SIMD type operations where a benefit can be realized by instantiating many processing elements - such as MACs - in parallel. This is possible because convolution operations do not require an extensive number of calculations that need to execute in a specific sequence. In other words, the output of one MAC operation in a convolutional layer does not need to be made available to another MAC in that same layer. As is demonstrated later in this report, each of the popular CNN layers (convolution, activation, pooling...etc) can theoretically be executed in just a single clock cycle. Although the idea of classifying millions of images every second is exciting, there are two primary restraints when attempting to unroll a model. First is the apparent limitation of available logic resources on an FPGA. A fully unrolled layer such as convolution could easily consume the resources of an entire logic device, depending on the device and the dimensions of the image. The second restraint is timing closure. A large convolution kernel will require the summation of many multiplier products. All these multiply and adder circuits will need to resolve before the arrival of the following clock edge which will lock the final result into a register. If the propogation delays are too long or the clock is too fast, an implementated design will fail timing analysis meaning that the clock could register erroneous data.
+Loop Unrolling
+--------------
 
-**Folding** (otherwise known as time-multiplexing) has the opposite effect of loop unrolling. It is the sharing of a computational resource among multiple operations that are executed during different time intervals. This technique can be used to optimize resource utilization when certain processes are not required to run all the time. For exmaple, let us say that every 50 clock cycles operation A generates a result which is used as an input to operation B. Once operation B consumes that result it takes only 10 clocks to finish its calculation and then waits for the next result from A. This means that the composition of resources for operation B are not utilized 80% of the time and is thus not optimal. In this situation, loop unrolling operation B will not benefit the system but will instead consume under-utilized resources. If possible, it would be beneficial to construct the model such that the computation resources of operation B are shared over time partitions with other operations in the model. Time-multiplexing fully-utilized resources will of course increase overall system latency and decrease throughput. This may be required for larger designs or when constrained to smaller FPGA devices. Together, loop unrolling and folding can be used to balance a system's performance and optimize efficiency, utlimately maximizing capability.
+Loop unrolling is a technique that has potential to both decrease a model's latency as well as increase its throughput capacity. Loop unrolling is what allows a design to capitalize on what FPGAs have been known to excel at. That is, parallel processing. As previously discussed, CNN models are primarily composed of SIMD type operations where a benefit can be realized by instantiating many processing elements - such as MACs - in parallel. This is possible because convolution operations do not require an extensive number of calculations that need to execute in a specific sequence. In other words, the output of one MACC operation in a convolutional layer does not need to be made available to another MACC in that same layer. As is demonstrated later in this report, each of the popular CNN layers (convolution, activation, pooling...etc) can theoretically be executed in just a single clock cycle. Although the idea of classifying millions of images every second is exciting, there are two primary restraints when attempting to unroll a model. First is the apparent limitation of available logic resources on an FPGA. A fully unrolled layer such as convolution could easily consume the resources of an entire logic device, depending on the device and the dimensions of the image. The second restraint is timing closure. A large convolution kernel will require the summation of many multiplier products. All these multiply and adder circuits will need to resolve before the arrival of the following clock edge which will lock the final result into a register. If the propogation delays are too long or the clock is too fast, an implementated design will fail timing analysis meaning that the clock could register erroneous data.
+
+Folding
+-------
+
+Folding (also known as time-multiplexing) has the opposite effect of loop unrolling. It is the sharing of a single computational resource among multiple operations that are executed during different time intervals. This technique can be used to optimize resource utilization when certain processes are not required to run all the time. For exmaple, let us say that every 50 clock cycles operation A generates a result which is used as an input to operation B. Once operation B consumes that result it takes only 10 clocks to finish its calculation and then waits for the next result from A. This means that the composition of resources for operation B are not utilized 80% of the time and is thus not optimal. In this situation, loop unrolling operation B will not benefit the system but will instead consume under-utilized resources. If possible, it would be beneficial to construct the model such that the computation resources of operation B are shared over time partitions with other operations in the model. Time-multiplexing fully-utilized resources will of course increase overall system latency and decrease throughput. This may be required for larger designs or when constrained to smaller FPGA devices. Together, loop unrolling and folding can be used to balance a system's performance and optimize efficiency, utlimately maximizing capability.
 
 Post-Synthesis Convolution Utilization with and without Folding (Git hash: d273698)
 
@@ -148,6 +187,15 @@ Post-Synthesis Convolution Utilization with and without Folding (Git hash: d2736
 * Weight Reduction (SVD)
 * ...
 
+
+
+
+
+
+
+
+
+
 Available Tool-flows
 ====================
 
@@ -163,6 +211,15 @@ A surprisingly large number of frameworks have already been developed - mostly t
 
 * FINN
 * ...
+
+
+
+
+
+
+
+
+
 
 My Design and Implementation
 ============================
@@ -189,7 +246,7 @@ The goal of this first convolution module design is to realize a highly modular 
 
 This module was designed as a fully loop-unrolled single-clock convolution accelerator. This means that a successful implementation-run will process one full image (or feature map) input in just one clock cycle. If desired, all kernal weights can be updated for every image that is processed. The obvious drawback to this fully parallelized implementation is the high utilization of logic slice look-up tables (LUTs). Feasability and limitations of its full implementation including place-and-route is still under analysis.
 
-Due to the redundency of convolution operations, the "for loop" VHDL construct was applied to facilitate replication of MAC operations. Unlike software programming langues which use "for loops" to repeat a sequence of operations, VHDL will replicate MAC logic for each iteration of the loop. Multidimensional arrays along with looping constructs provide the ability for less repetitive and much more compact code. In addition to image size, generic inputs provide customization of additional features such as stride length as well as zero-padding. If selected, zero-padding is applied to the input data using the generate operation. The looping constructs within the main process were also convenient for adding custom stride length options. 
+Due to the redundency of convolution operations, the VHDL **for-loop** construct can provide an elagent solution for the replication of many MACC operations. Unlike software programming langues which use the **for-loop** to repeat sequential operations, VHDL will instead replicate the logic described within the loop for each iteration. Multidimensional arrays used with looping constructs provides the capability for writing much less repetitive code that promotes reusability and effortless customization. In addition to the adjustable image dimensions, **generic** ports provide customizable convolution parameters such as kernel strides that are greater than one and zero-padding. Looping constructs within the main process provides a convenient and readable implementation of custom stride length. If selected, zero-padding is applied to the input data using VHDL **for-generate** statements. When these features are not desired, setting stride to one and padding to zero will disable them.
 
 Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
 
@@ -197,10 +254,7 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
   
   \[ o = \frac{i + 2p - k}{s} + 1 \]
 
-TODO:
-
-* Time multiplexing
-* Verify functionality through testbench simulation
+TODO
 * Verify implementation functionality
 []
 
@@ -333,7 +387,24 @@ TODO:
 Folded Convolution
 ------------------
 
-It very quickly became apparent that a fully-unrolled convolution block is not a sustainable method for large convolution models. In order to allieviate utilization, folding of MAC operations over multiple clocks was the next step. Unfortunately, VHDL does not provide the ability to extend iterative loops over multiple clocks cycles. I decided to develop my own iterator module which can be instantiated for any scenario that requires iterating through the multi-dimensional "GridType" signals over multiple clocks. The design quickly became much more complex when facilitating folding operations over multiple clocks and organizing data-flow in a way that will maximize efficiency. Additional control logic and signals were required for coordination between the convolution process and the input/output data streams. Two designs were developed and tested to observe how folding of MAC operations would affect FPGA utilization. The first design applied folding such that each kernel step required its own clock cycle. This extended the convolution operation over a number of clocks equal to the number of neurons in the feature-map output. For example, an 8x8 3-channel input with a 3x3 kernel would require 3*(8-3+1)^2 = 108 clocks. The 3x3 kernel requires the instantiation of 9 multipliers and 8 adders to perform the MAC operation. By time-multiplexing MAC operations over the same resources, this design provided great resource usage improvements. Large kernels, however, will continue to prove difficult for resource constrained applications as well as for timing closure. The next design addresses this issue by further folding of convolution provided a single clock to each multiply and sum operation.
+It quickly becomes apparent that a fully-unrolled convolution block is not a sustainable method of implementing large convolutional models. This is due to high resource usage and timing closure constraints. In order to allieviate resource utilization, folding of MACC operations over multiple clocks allows logic to be reused iterratively over time. Unfortunately, VHDL does not provide a straightforward method for extending iterative loops over multiple clock cycles. Thus an iterator module was developed which can be instantiated for any scenario that requires iterating through multi-dimensional "GridType" arrays over multiple clocks. The design quickly becomes much more complex when facilitating folding operations and organizing data-flow in a way that promotes efficiency of resource usage. Additional control logic and signals were required for coordinating between the convolution process and the input/output data streams. Two designs were developed and tested to observe how folding of MACC operations would affect FPGA utilization. The first design applied folding such that each kernel step required one clock cycle. This extended the convolution operation over a number of clocks equal to the number of neurons in the feature-map output. For example, an 8x8 3-channel input with a 4x4 kernel would require *3\*(8-4+1)^2 = 75* clocks. In this design, a 4x4 kernel will instantiate logic for 16 individual multipliers and 15 adders in order to resolve the MACC operation in a single clock. By time-multiplexing MACC operations over the same resources, this design provided great improvements in resource usage. 
+
+Large kernels, however, will continue to prove difficult for resource constrained applications and is especially difficult for timing closure. The number of values to be summed in a MACC operation is equal to the number of weights in the kernel. For example, an 8x8 kernel would require 63 addition operations to be resolved before the next rising clock edge. As kernel sizes increase even further, place-and-route tools will have difficulty implementing physical logic that satisfies even a relatively slow running clock. Techniques can be used to guide the implementation tool towards a solution that will potentially satisfy timing. This could be done by describing in VHDL parallel adder operations of half the products with the other half and repeating the technique all the way down the chain until there is a single result. Rather than chaining together 63 adders in sequence, the tool would implement the same 63 additions in a sequence of 32-16-8-4-2-1 parallel adders decreasing the chain length down to just 6.  Another technique would be to apply timing constraints that allow for multi-cycle paths which would provide additional clock periods for the process to resolve. This would also require special considerations in iteration rates and clocking of data going in and out of the MACC unit and would certainly increase design complexity.
+
+The next design applies additional folding of the convolution block such that a single MAC will now sequentially process the entire convolution using just one multiply and one addition. The number of clocks required for this implementation will be equal to the number of neuron outputs multiplied by the number of weights in the kernel. The same 8x8 3-channel input with a 4x4 kernel will now require *3\*4^2\*(8-4+1)^2 = 1200* clock cycles to complete. Although this will provide additional resource savings, it will be at the cost of much greater latency and throughput. Additional resources will be required to facilitate the coordination of iterative operation sequences and will in-turn drive up design complexity.
+
+
+
+
+TODO:
+- Design conv v2 with parallel additions and see how it affects time efficiency.
+- Design conv v2 and apply multi-cycle paths.
+
+
+
+
+
+
 
 
 Performance Evaluation
@@ -348,6 +419,13 @@ Direction of Future Work
 
 Conclusion
 ==========
+
+
+
+
+
+
+
 
 
 
