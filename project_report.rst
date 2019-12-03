@@ -397,8 +397,8 @@ The next design applies additional folding of the convolution block such that a 
 
 
 TODO:
-- Design conv v2 with parallel additions and see how it affects time efficiency.
-- Design conv v2 and apply multi-cycle paths.
+- Design conv-folding with parallel additions and see how it affects time efficiency.
+- Design mac-folding w/o conv-folding and analyze results.
 
 
 

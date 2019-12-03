@@ -73,12 +73,6 @@ architecture Behavioral of folded_conv is
         1 to CHANNEL_COUNT
         ) (GRADIENT_BITS - 1 downto 0);
 
-    signal Padded_Image : GridType(
-        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-        1 to CHANNEL_COUNT
-        ) (GRADIENT_BITS - 1 downto 0);
-
     signal Input_Kernel : GridType(
         1 to KERNEL_SIZE,
         1 to KERNEL_SIZE,
@@ -117,7 +111,7 @@ architecture Behavioral of folded_conv is
     -- Data-flow control signals
     signal image_complete       : boolean;
     signal kernel_complete      : boolean;
-    signal convolution_complete : boolean;
+    signal conv_complete        : boolean;
     signal feature_complete     : boolean;
     signal transfer_complete    : boolean;
 
@@ -134,7 +128,7 @@ begin
         elsif rising_edge(Aclk) then
             if transfer_complete then
                 transfer_complete <= FALSE;
-            elsif image_complete and kernel_complete and convolution_complete and feature_complete then
+            elsif image_complete and kernel_complete and conv_complete and feature_complete then
                 Conv_Kernel     <= Input_Kernel;
                 Conv_Image      <= Input_Image;
                 Output_Feature  <= Conv_Feature;
@@ -182,64 +176,33 @@ begin
             );
     --------------------------------------------------
 
-    ----------- Generate zero-padded image -----------
-    gen_row : for row in Padded_Image'range(1) generate
-        gen_col : for col in Padded_Image'range(2) generate
-            gen_chn : for chn in Padded_Image'range(3) generate
-                -- Fill with input image when out of padding range
-                gen_zp : if  (row > ZERO_PADDING) and 
-                            (col > ZERO_PADDING) and 
-                            (row <= Padded_Image'high(1) - ZERO_PADDING) and 
-                            (col <= Padded_Image'high(2) - ZERO_PADDING) generate
-                    Padded_Image(row, col, chn) <= Conv_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
-                else generate
-                    Padded_Image(row, col, chn) <= (others => '0');
-                end generate gen_zp;
-            end generate gen_chn;
-        end generate gen_col;
-    end generate gen_row;
-    --------------------------------------------------
-
     --------------- Compute convolution --------------
-    convolution_process : process(Aclk, Aresetn)
-        variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
-    begin
-        if Aresetn = '0' then
-            convolution_complete <= FALSE;
-            feature_sum := (others => '0');
-            Conv_Feature <= (others => (others => (others => (others => '0'))));
-        elsif rising_edge(Aclk) then
-            if not convolution_complete then
-                ----- Multiply Accumulate -----
-                feature_sum := feature_sum
-                    -- Add Input Neuron
-                    + Padded_Image(
-                        STRIDE_STEPS * (conv_row - 1) + mac_row, 
-                        STRIDE_STEPS * (conv_col - 1) + mac_col, 
-                        conv_chn)
-                    -- Multiplied by Kernel Weight
-                    * Conv_Kernel(mac_row, mac_col, conv_chn);
-                -------------------------------
-                if not conv_hold then
-                    -- Apply ReLU activation
-                    if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
-                        Conv_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
-                    else
-                        -- Scale down Result
-                        Conv_Feature(conv_row, conv_col, conv_chn) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
-                    end if;
-                    feature_sum := (others => '0');
-                    -- Check if convolution is complete
-                    if mac_hold then
-                        convolution_complete <= TRUE;
-                    end if;
-                end if;
-                -------------------------------
-            elsif transfer_complete then
-                convolution_complete <= FALSE;
-            end if;
-        end if;
-    end process;
+    convolution_process : process_conv
+        generic map (
+            IMAGE_SIZE      => IMAGE_SIZE,
+            KERNEL_SIZE     => KERNEL_SIZE,
+            CHANNEL_COUNT   => CHANNEL_COUNT,
+            GRADIENT_BITS   => GRADIENT_BITS,
+            STRIDE_STEPS    => STRIDE_STEPS,
+            ZERO_PADDING    => ZERO_PADDING,
+            RELU_ACTIVATION => RELU_ACTIVATION
+            )
+        port map (
+            Aclk                => Aclk,
+            Aresetn             => Aresetn,
+            Conv_Image          => Conv_Image,
+            Conv_Kernel         => Conv_Kernel,
+            Conv_Feature        => Conv_Feature,
+            conv_complete       => conv_complete,
+            mac_hold            => mac_hold,
+            mac_row             => mac_row,
+            mac_col             => mac_col,
+            conv_hold           => conv_hold,
+            conv_row            => conv_row,
+            conv_col            => conv_col,
+            conv_chn            => conv_chn,
+            transfer_complete   => transfer_complete
+            );
 
     -- MAC folding iterator state machine
     iterator_mac_folding : grid_iterator
@@ -255,12 +218,12 @@ begin
             column  => mac_col,
             channel => open
             );
-    mac_hold <= (convolution_complete and (not transfer_complete))
-            or ((mac_row = Conv_Kernel'high(1)) 
-            and (mac_col = Conv_Kernel'high(2)) 
-            and (conv_row = Conv_Feature'high(1)) 
-            and (conv_col = Conv_Feature'high(2)) 
-            and (conv_chn = Conv_Feature'high(3)));
+    mac_hold <= (conv_complete and (not transfer_complete))
+                or ((mac_row = Conv_Kernel'high(1)) 
+                and (mac_col = Conv_Kernel'high(2)) 
+                and (conv_row = Conv_Feature'high(1)) 
+                and (conv_col = Conv_Feature'high(2)) 
+                and (conv_chn = Conv_Feature'high(3)));
 
     -- Convolution folding iterator state machine
     iterator_conv_folding : grid_iterator
@@ -276,7 +239,7 @@ begin
             column  => conv_col,
             channel => conv_chn
             );
-    conv_hold <= (not ((mac_row = Conv_Kernel'high(1)) and (mac_col = Conv_Kernel'high(2)))) or convolution_complete;
+    conv_hold <= (not ((mac_row = Conv_Kernel'high(1)) and (mac_col = Conv_Kernel'high(2)))) or conv_complete;
     --------------------------------------------------
 
     -------------- TX out feature grid ---------------
@@ -299,5 +262,4 @@ begin
     --------------------------------------------------
 
 end Behavioral;
-
 

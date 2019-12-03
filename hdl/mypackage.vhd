@@ -47,7 +47,7 @@ package mypackage is
             GRADIENT_BITS   : natural := 8;
             STRIDE_STEPS    : natural := 1;
             ZERO_PADDING    : integer := 0;
-            RELU_ACTIVATION : boolean
+            RELU_ACTIVATION : boolean := TRUE
         );
         Port (
             Aclk           : in std_logic;
@@ -62,6 +62,46 @@ package mypackage is
             Feature_Valid  : out boolean;
             Feature_Ready  : in boolean
         );
+    end component;
+
+    component process_conv
+        Generic (
+            IMAGE_SIZE      : natural := 24;
+            KERNEL_SIZE     : natural := 9;
+            CHANNEL_COUNT   : natural := 3;
+            GRADIENT_BITS   : natural := 8;
+            STRIDE_STEPS    : natural := 1;
+            ZERO_PADDING    : integer := 0;
+            RELU_ACTIVATION : boolean := TRUE
+            );
+        Port (
+            Aclk    : in std_logic;
+            Aresetn : in std_logic;
+            Conv_Image : in GridType(
+                1 to IMAGE_SIZE,
+                1 to IMAGE_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS - 1 downto 0);
+            Conv_Kernel : in GridType(
+                1 to KERNEL_SIZE,
+                1 to KERNEL_SIZE,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS - 1 downto 0);
+            Conv_Feature : out GridType(
+                1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+                1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+                1 to CHANNEL_COUNT
+                ) (GRADIENT_BITS - 1 downto 0);
+            mac_hold            : in boolean;
+            mac_row             : in integer range 1 to KERNEL_SIZE;
+            mac_col             : in integer range 1 to KERNEL_SIZE;
+            conv_hold           : in boolean;
+            conv_row            : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1;
+            conv_col            : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1;
+            conv_chn            : in integer range 1 to CHANNEL_COUNT;
+            transfer_complete   : in boolean;
+            conv_complete       : out boolean
+            );
     end component;
 
     component relu
