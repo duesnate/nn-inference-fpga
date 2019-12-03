@@ -53,7 +53,7 @@ end wrap_folded_conv;
 architecture Behavioral of wrap_folded_conv is
 begin
 
-    folded_conv_00 : folded_conv
+    folded_conv_00 : folded_conv_v2
         generic map (
             IMAGE_SIZE      => IMAGE_SIZE,
             KERNEL_SIZE     => KERNEL_SIZE,

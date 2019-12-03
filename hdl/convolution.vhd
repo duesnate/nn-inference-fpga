@@ -33,7 +33,8 @@ entity convolution is
         CHANNEL_COUNT   : natural := 3;
         GRADIENT_BITS   : natural := 8;
         STRIDE_STEPS    : natural := 1;
-        ZERO_PADDING    : integer := 0
+        ZERO_PADDING    : integer := 0;
+        RELU_ACTIVATION : boolean := TRUE
     );
     Port (  
         Aclk            : in std_logic;
@@ -48,7 +49,7 @@ entity convolution is
             1 to KERNEL_SIZE,
             1 to CHANNEL_COUNT
             ) (GRADIENT_BITS - 1 downto 0);
-        Feature_Map     : out GridType( 
+        Output_Feature  : out GridType( 
             1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
             1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
             1 to CHANNEL_COUNT
@@ -58,9 +59,10 @@ end convolution;
 
 architecture Behavioral of convolution is
 
-    constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2))));
+    -- Prevents overflow during summation (subtract one because signed)
+    constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
 
-    signal Image_Padded : GridType(
+    signal Padded_Image : GridType(
         1 to IMAGE_SIZE + 2 * ZERO_PADDING,
         1 to IMAGE_SIZE + 2 * ZERO_PADDING,
         1 to CHANNEL_COUNT
@@ -68,50 +70,56 @@ architecture Behavioral of convolution is
 
 begin
 
-    -- Generate zero-padded image
-    gen_row: for row in Image_Padded'range(1) generate
-        gen_col: for col in Image_Padded'range(2) generate
-            gen_chl: for channel in Image_Padded'range(3) generate
+    ----------- Generate zero-padded image -----------
+    gen_row : for row in Padded_Image'range(1) generate
+        gen_col : for col in Padded_Image'range(2) generate
+            gen_chn : for chn in Padded_Image'range(3) generate
                 -- Fill with input image when out of padding range
-                gen_zp: if  (row > ZERO_PADDING) and 
+                gen_zp : if (row > ZERO_PADDING) and 
                             (col > ZERO_PADDING) and 
-                            (row <= Image_Padded'high(1)-ZERO_PADDING) and 
-                            (col <= Image_Padded'high(2)-ZERO_PADDING) generate
-                    Image_Padded(row, col, channel) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, channel);
+                            (row <= Padded_Image'high(1) - ZERO_PADDING) and 
+                            (col <= Padded_Image'high(2) - ZERO_PADDING) generate
+                    Padded_Image(row, col, chn) <= Conv_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
                 else generate
-                    Image_Padded(row, col, channel) <= (others => '0');
+                    Padded_Image(row, col, chn) <= (others => '0');
                 end generate gen_zp;
-            end generate gen_chl;
+            end generate gen_chn;
         end generate gen_col;
     end generate gen_row;
+    --------------------------------------------------
 
     process(Aclk, Aresetn)
         variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
     begin
         if Aresetn = '0' then
-            Feature_Map <= (others => (others => (others => (others => '0'))));
+            Output_Feature <= (others => (others => (others => (others => '0'))));
         elsif rising_edge(Aclk) then
-            for row_iter in Feature_Map'range(1) loop
-                for col_iter in Feature_Map'range(2) loop
-                    for channel in Feature_Map'range(3) loop
+            for conv_row in Output_Feature'range(1) loop
+                for conv_col in Output_Feature'range(2) loop
+                    for conv_chn in Output_Feature'range(3) loop
                         -- Clear summation
                         feature_sum := (others => '0');
-                        for row in Kernel_Weights'range(1) loop
-                            for column in Kernel_Weights'range(2) loop
-                                
+                        for mac_row in Kernel_Weights'range(1) loop
+                            for mac_col in Kernel_Weights'range(2) loop
+                                ----- Multiply Accumulate -----
                                 feature_sum := feature_sum
-                                    -- Add Input Image
-                                    + Image_Padded(
-                                        STRIDE_STEPS * (row_iter - 1) + row, 
-                                        STRIDE_STEPS * (col_iter - 1) + column, 
-                                        channel)
+                                    -- Add Input Neuron
+                                    + Padded_Image(
+                                        STRIDE_STEPS * (conv_row - 1) + mac_row, 
+                                        STRIDE_STEPS * (conv_col - 1) + mac_col, 
+                                        conv_chn)
                                     -- Multiplied by Kernel Weight
-                                    * Kernel_Weights(row, column, channel);
-                                
+                                    * Conv_Kernel(mac_row, mac_col, conv_chn);
+                                -------------------------------
                             end loop;
                         end loop;
-                        -- Scale down Result
-                        Feature_Map(row_iter, col_iter, channel) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+                        -- Apply ReLU activation
+                        if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
+                            Output_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
+                        else
+                            -- Scale down Result
+                            Output_Feature(conv_row, conv_col, conv_chn) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+                        end if;
                     end loop;
                 end loop;
             end loop;
