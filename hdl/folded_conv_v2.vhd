@@ -4,7 +4,7 @@
 -- 
 -- Create Date: 10/26/2019 09:17:28 PM
 -- Design Name: 
--- Module Name: folded_conv - Behavioral
+-- Module Name: folded_conv_v2 - Behavioral
 -- Project Name: 
 -- Target Devices: 
 -- Tool Versions: 
@@ -26,7 +26,7 @@ use IEEE.math_real.all;
 library xil_defaultlib;
 use xil_defaultlib.mypackage.ALL;
 
-entity folded_conv is
+entity folded_conv_v2 is
     Generic (
         IMAGE_SIZE      : natural := 24;    -- I
         KERNEL_SIZE     : natural := 9;     -- K
@@ -54,9 +54,9 @@ entity folded_conv is
         Feature_Valid  : out boolean;
         Feature_Ready  : in boolean
     );
-end folded_conv;
+end folded_conv_v2;
 
-architecture Behavioral of folded_conv is
+architecture Behavioral of folded_conv_v2 is
 
     -- Prevents overflow during summation (subtract one because signed)
     constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
