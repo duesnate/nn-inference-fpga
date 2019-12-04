@@ -7,7 +7,7 @@ CNN Inference on FPGAs: Project Report
 Introduction
 ============
 
-Machine learning (ML) has drastically increased in popularity over the past decade due to technological advancements in processing power. Although concepts of ML and, more specifically, deep learning (DL) are not exactly new ideas, it has only been in recent years that these techniques have become practical solutions for many real-world problems. A large number of tools have been developed and made available by various groups that provide an accessible framework for the design of neural networks (NN). These include TensorFlow, Caffe, and PyTorch to name a few. These frameworks provide the tools needed in order to quickly implement NNs on both central processing units (CPU) and graphics processing units (GPU) with only minimal experience. As of late, GPUs have become the goto processing resource for implementing deep neural network (DNN) models due to the large array of processing cores it provides. Modern-day GPUs can have thousands of processing cores to enable massive parallelization of single instruction multiple data (SIMD) type calculations. Field programmable gate arrays (FPGAs) provide yet another solution for executing massively parallelized calculations while additionally providing a comprehensive set of additional capabilities and features.
+Machine learning (ML) has increased in popularity over the past decade largely due to technological advancements in processing power. Although concepts of ML and, more specifically, deep learning (DL) are not exactly new ideas, it has only been in recent years that these techniques have become practical solutions for many real-world problems. A large number of tools have been developed and made available by various groups that provide an accessible framework for the design of neural networks (NN). These include TensorFlow, Caffe, and PyTorch to name a few. These frameworks provide the tools needed in order to quickly implement NNs on both central processing units (CPU) and graphics processing units (GPU) with only minimal experience. As of late, GPUs have become the goto processing resource for implementing deep neural network (DNN) models due to the large array of processing cores it provides. Modern-day GPUs can have thousands of processing cores to enable massive parallelization of single instruction multiple data (SIMD) type calculations. Field programmable gate arrays (FPGAs) provide yet another solution for executing massively parallelized calculations while additionally providing a comprehensive set of additional capabilities and features.
 
 The purpose of this project is to explore the topic of neural network inference using FPGAs. Unlike GPUs, FPGAs are dynamically configured at a lower hardware level and can be used for the purpose of accelerating specific tasks with unparalleled time-determinism. FPGAs can also be quickly reconfigured for changes in application. A relatively new concept called partial reconfiguration has also been introduced and provides the developer with the ability to reconfigure specified regions at runtime while the rest of the device continues in normal operation. Application specific acceleration engines can be intuitively described using behavioral HDL code while concurrently allowing the developer to closely manage synthesis at the register transfer level (RTL) if needed.
 
@@ -31,7 +31,7 @@ The convolution operation consists primarily of the multiply-accumulate (MACC) o
 
 Implementing a convolution function in hardware is computationally expensive and will require a fair amount of processing resources. Convolution operations will typically consume the majority of the total utilized processing resources in CNN models. Intuitively, the convolution operations will occupy the majority of the utilized logic resources when implementing CNNs on FPGAs. 
 
-Notice that convolutional blocks used in NN designs are for the most part all very similar if not identical. The only differences would be parameters such as input and kernel size as well as other settings such as zero padding widths and stride size. These blocks have a high potential for modularity. A generic convolution block can be described in HDL once and then instantiated as many times as needed. By using generic inputs during instantiation, block parameters are determined pre-synthesis allowing for different types of convolutional layers to be implemented throughout the model. 
+Notice that convolutional blocks used in NN designs are for the most part all very similar if not identical. The only differences would be parameters such as input and kernel size as well as other settings such as zero-padding and stride steps. These blocks have a high potential for modularity. A generic convolution block can be described in HDL once and then instantiated as many times as needed. By using generic inputs during instantiation, block parameters are determined pre-synthesis allowing for different types of convolutional layers to be implemented throughout the model. 
 
 
 Pooling Block
@@ -52,6 +52,22 @@ Fully Connected Block
 The fully connected (FC) layer of a CNN is primarily used at the final stage of the network model and serves to transform feature maps into the final image classifications. Multiple FC layers can exist throughout the model as hidden layers. It is most common, however, for them to be instantiated in sequence of decreasing size at the end. The number of neurons used in each hidden layer can be adjusted during the design phase for optimizing performance. It is important to note though that the number of possible image classifications will determine the number of neurons in the final FC layer. Each classification label will be assigned to an output neuron and whichever neuron is most favored will be used as the network's prediction. As the name suggests, FC layers require that each neuron be connected to all the neurons of neighboring FC layers making them particularly resource costly. Each neuron requires a trained bias value as well as trained weights for each neuron in the following layer. This means a large overhead of trained values must be stored and made available to the model.
 
 
+
+Available Tool-flows
+====================
+
+Due to the modular nature of a NN with its individual functional components, people quickly theorized and implemented generic constructs that can scale in size, be re-ordered, or even be swapped out for alternative components. Hardware description language (HDL) designs take in parameters pre-synthesis and use them to define compatible interfaces and to implement desired functionality for specific implementations. There already exists a number of tools capable of auto-generating HDL for realizing NN models in PL. Some tools require the user to describe the model in an abstract high-level language whereas others don't require programming any code at all. This is important since the majority of software developers and scientists seeking to apply ML in their work are not experienced with the nuances of HDL design. In addition, describing a NN from scratch using HDL could become an arduous task especially if the designer does not have the experience level needed to benefit from the potential of design modularity NNs provide. The development of accessible tool-flows and libraries is an important step forward in reducing the barrier to entry for FPGA use in ML applications. We will briefly explore various open-source tool-flows currently available that provide auto-generation of synthesizable code for building CNN models.
+
+A surprisingly large number of frameworks have already been developed - mostly through university research - that provide users with accessible design frameworks for CNN implementations on PL without requiring custom handwritten HDL. These frameworks harness the inherent modularity of CNN blocks to provide users with the capability of auto-generating a complete HDL description that implements their desired model. The developer interface varies among the available frameworks but most frequently resorts to a high-level synthesis language approach. Frameworks such as HADDOC2 and DnnWeaver provide compatibility with models that have been developed with Caffe which is a very popular DNN framework with a python interface. By adapting a framework that is already familiar in the deep learning (DL) community, these tools are opening the doors for DNN inference on FPGAs to a broader spectrum of potential DNN developers. 
+
+* HADDOC2
+
+* DnnWeaver
+
+[DnnWeaver] employs an architecture most closely resembling the single engine architecture. The toolflow inputs DNN models that use the popular Caffe format. The developers of DnnWeaver created a macro dataflow instruction set architecture (ISA) so that the Caffe models can be parsed and stored as one or two 64-bit words. This model-derived instruction set - along with the target FPGA specs - is used to configure and connect an optimized combination of pre-designed hardware templates in order to realize the model. In addition, the ISA will generate a static process sequence schedule to orchestrate optimized dataflow. Memory access efficiency is optimized using computation slicing to allow for data-reuse. The algorithm seeks to create an effective balance between data-reuse and parallelization techniques. An optimized acceleration engine is then generated with embedded FSMs and microcodes based off the derived scheduler. According to the evaluation presented in [Toolflows], DnnWeaver achieves the highest portability rating for target FPGA devices. The tool excels in customization, modularity, and scalability but received lower scores in metrics that include optimization and performance density.
+
+* FINN
+* ...
 
 
 
@@ -90,16 +106,12 @@ Single engine architectures, as the name implies, take the form of a single powe
 
 
 
-
-
 FPGA vs. GPU
 ============
 
 Although GPUs have been greatly beneficial for the advancement of DNN performance, there are a few drawbacks. High performing GPUs consume large amounts of energy and are thus particularly limited in mobile and other low-power applications. In addition, the development of NNs on GPUs requires the use of an application programming interface (API) which provides access to parallel processing capabilities for general purpose use cases. This extra layer of abstraction from the hardware reduces the maximum achievable hardware efficiency and increases energy consumption. As for the APIs available, NVIDIA's CUDA platform provides developers with a comprehensive library for NN support on NVIDIA GPUs. NVIDIA's active development in the CUDA framework and its features will no doubt make improvements on performance and efficiency. Due to the static nature of a GPU's architecture, however, there exists a fundamental limitation to the achievable utilization of hardware and its efficiency.
 
 * ...
-
-
 
 
 
@@ -143,13 +155,13 @@ Binarized neural networks (BNN) take the concept of data quantization to the ext
 The following summary describes the techniques FINN uses to implement a highly efficient BNN. First is the popcount accumulator which serves as the dot product summation operation. All synapses coming into a neuron are single-bit values and can be stored as an array. The popcount operation simply adds up all the set bits in this array and outputs the sum. Popcount provides a 50% reduction in resource usage in comparison to the alternative signed accumulator. A thresholding unit is then applied to this sum and will serve as a simple binary implementation of the Batchnorm-activation function. The threshold value and polarity is constant and can be determined from the trained weights of a full batchnorm-activation process used during training.
 
 .. math::
-	
-	\[
-		Learned weights: \Theta_k = (\lambda_k, \mu_k, \i_k, B_k)
-		BatchNorm(a_k, \Theta_k) = \lambda_k (a_k - \mu_k) i_k + B_k
-		BatchNorm(a_k, \Theta_k) = 0 -> \Tau_k = mu_k - \frac{B_k}{\lambda_k i_k}
-		Threshold: \Tau_k^+ = \frac{|Tau_k + S_{Fan-In}}{2}
-	\]
+    
+    \[
+        Learned weights: \Theta_k = (\lambda_k, \mu_k, \i_k, B_k)
+        BatchNorm(a_k, \Theta_k) = \lambda_k (a_k - \mu_k) i_k + B_k
+        BatchNorm(a_k, \Theta_k) = 0 -> \Tau_k = mu_k - \frac{B_k}{\lambda_k i_k}
+        Threshold: \Tau_k^+ = \frac{|Tau_k + S_{Fan-In}}{2}
+    \]
 
 Using this training-weight-derived positive-only threshold value, we can now apply an unsigned comparator on the sum and the threshold and obtain a binary output. Thus, a simple comparator and a compile-time initialized constant can realize a binary batchnorm-activation using less than just 5% of the resources that would otherwise have been required. Lastly, FINN uses the simple logical OR operator to apply the max-pooling function on the results of the comparators. FINN shows that the majority of computation in a BNN can be synthesized down to nothing more than popcounters, comparators, and OR-gates. The paper goes on to describe the organizational architecture of their BNN which includes aggregating these operations into what they call matrix-vector-threshold units (MVTU). 
 
@@ -165,11 +177,11 @@ Folding (also known as time-multiplexing) has the opposite effect of loop unroll
 
 Post-Synthesis Convolution Utilization with and without Folding (Git hash: d273698)
 
-* Image Size: 	10x10
-* Channels: 	1
-* Resolution: 	8-bit
-* Stride: 		1
-* Padding: 		0
+* Image Size:   10x10
+* Channels:     1
+* Resolution:   8-bit
+* Stride:       1
+* Padding:      0
 
 +-----------------+-----------+------------------+-----------------+
 | Site Type       | Available | Used w/o Folding | Used w/ Folding |
@@ -195,34 +207,14 @@ Post-Synthesis Convolution Utilization with and without Folding (Git hash: d2736
 
 
 
-
-Available Tool-flows
-====================
-
-Due to the modular nature of a NN with its individual functional components, people quickly theorized and implemented generic constructs that can scale in size, be re-ordered, or even be swapped out for alternative components. Hardware description language (HDL) designs take in parameters pre-synthesis and use them to define compatible interfaces and to implement desired functionality for specific implementations. There already exists a number of tools capable of auto-generating HDL for realizing NN models in PL. Some tools require the user to describe the model in an abstract high-level language whereas others don't require programming any code at all. This is important since the majority of software developers and scientists seeking to apply ML in their work are not experienced with the nuances of HDL design. In addition, describing a NN from scratch using HDL could become an arduous task especially if the designer does not have the experience level needed to benefit from the potential of design modularity NNs provide. The development of accessible tool-flows and libraries is an important step forward in reducing the barrier to entry for FPGA use in ML applications. We will briefly explore various open-source tool-flows currently available that provide auto-generation of synthesizable code for building CNN models.
-
-A surprisingly large number of frameworks have already been developed - mostly through university research - that provide users with accessible design frameworks for CNN implementations on PL without requiring custom handwritten HDL. These frameworks harness the inherent modularity of CNN blocks to provide users with the capability of auto-generating a complete HDL description that implements their desired model. The developer interface varies among the available frameworks but most frequently resorts to a high-level synthesis language approach. Frameworks such as HADDOC2 and DnnWeaver provide compatibility with models that have been developed with Caffe which is a very popular DNN framework with a python interface. By adapting a framework that is already familiar in the deep learning (DL) community, these tools are opening the doors for DNN inference on FPGAs to a broader spectrum of potential DNN developers. 
-
-* HADDOC2
-
-* DnnWeaver
-
-[DnnWeaver] employs an architecture most closely resembling the single engine architecture. The toolflow inputs DNN models that use the popular Caffe format. The developers of DnnWeaver created a macro dataflow instruction set architecture (ISA) so that the Caffe models can be parsed and stored as one or two 64-bit words. This model-derived instruction set - along with the target FPGA specs - is used to configure and connect an optimized combination of pre-designed hardware templates in order to realize the model. In addition, the ISA will generate a static process sequence schedule to orchestrate optimized dataflow. Memory access efficiency is optimized using computation slicing to allow for data-reuse. The algorithm seeks to create an effective balance between data-reuse and parallelization techniques. An optimized acceleration engine is then generated with embedded FSMs and microcodes based off the derived scheduler. According to the evaluation presented in [Toolflows], DnnWeaver achieves the highest portability rating for target FPGA devices. The tool excels in customization, modularity, and scalability but received lower scores in metrics that include optimization and performance density.
-
-* FINN
-* ...
-
-
-
-
-
-
-
-
-
-
 My Design and Implementation
 ============================
+
+TODO: For all design versions
+* Add architectural block design
+* Break apart code and describe the design
+* Add simulation results
+* Add implementation utilization tables for efficiency comparison
 
 My design uses VHDL as the hardware description programming language. In order to make use of this code, the tools must support the IEEE VHDL-2008 standard. Vivado 2019.1 supports some but not all of the features provided by VHDL-2008. Multi-dimensional arrays of three dimensions were successfully synthesized using the Vivado IDE. Vivado does not, however, support simulation for these three-dimensional arrays. In addtion, Vivado does not allow modules defined as VHDL-2008 to be dropped into block designs which are commonly used in Vivado design methodologies as the design's top layer definition. VHDL-2008 modules can be wrapped inside other modules that are defined as the default VHDL type prior to instantiation into the block design.
 
@@ -242,9 +234,9 @@ GridType is used to represent a single image or kernel as a three-dimensional ar
 Convolution
 -----------
 
-The goal of this first convolution module design is to realize a highly modular and scalable building block that can be used to define a variety of convolutional layer types by using **generic** parameters that are selected pre-synthesis. These parameters allow the module to support any image size or input feature map of three or less dimensions. These three dimensions represent the number of rows, columns and channels. Bit resolution for color gradient values may also be customized. The dimensions of the output feature map is calculated automatically.
+The goal of this first convolution module design is to realize a highly modular and scalable building block that can be used to define a variety of convolutional layer types by using **generic** parameters that are selected pre-synthesis. These parameters allow the module to support any image size or input feature map of four or less dimensions. The first three array dimensions represent the number of rows, columns and channels. The final dimension is for bit resolution of color gradient values and this may also be customized. The dimensions of the output feature map will be calculated automatically.
 
-This module was designed as a fully loop-unrolled single-clock convolution accelerator. This means that a successful implementation will process one full image (or feature map) input in just one clock cycle. If desired, all kernal weights can be updated for every image that is processed. The obvious drawback to this fully parallelized implementation is the high utilization of logic slice look-up tables (LUTs). Feasability and limitations of its full implementation including place-and-route is described in the following sections.
+This first module was designed as a fully loop-unrolled single-clock convolution accelerator. This means that a successful implementation will process one full image (or feature map) input in just one clock cycle. If desired, all kernal weights can be updated for every image that is processed. The obvious drawback to this fully parallelized implementation is the high utilization of logic slice look-up tables (LUTs). Feasability and limitations of its full implementation including place-and-route is described in the following sections.
 
 Due to the redundency of convolution operations, the VHDL **for-loop** construct can provide an elagent solution for the replication of many MACC operations. Unlike software programming languages which use the **for-loop** to repeat sequential operations, VHDL will instead replicate the logic described within the loop for each iteration. Multidimensional arrays used with looping constructs provides the capability for writing much less repetitive code that promotes reusability and effortless customization. In addition to the adjustable image dimensions, **generic** ports provide customizable parameters to support kernel strides greater than one and zero-padding. Looping constructs within the main process provides a convenient and readable implementation of custom stride length. If selected, zero-padding is applied to the input data using VHDL **for-generate** statements. When these features are not desired, setting stride to one and padding to zero will disable them.
 
@@ -254,10 +246,6 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
   
   \[ o = \frac{i + 2p - k}{s} + 1 \]
 
-TODO
-* Add architectural block design
-* Add simulation results
-
 .. figure:: figs/vivado_ip_convolution.png
 
    Figure: Convolution block drop in IP for Vivado block designs.
@@ -266,105 +254,105 @@ TODO
 
 .. code-block:: VHDL
 
-	library IEEE;
-	use IEEE.STD_LOGIC_1164.ALL;
-	use IEEE.NUMERIC_STD.ALL;
-	use IEEE.math_real.all;
-	library xil_defaultlib;
-	use xil_defaultlib.mypackage.ALL;
+    library IEEE;
+    use IEEE.STD_LOGIC_1164.ALL;
+    use IEEE.NUMERIC_STD.ALL;
+    use IEEE.math_real.all;
+    library xil_defaultlib;
+    use xil_defaultlib.mypackage.ALL;
 
-	entity convolution is
-	  Generic(
-	    IMAGE_SIZE      : natural := 6;
-	    KERNEL_SIZE     : natural := 3;
-	    CHANNEL_COUNT   : natural := 3;
-	    GRADIENT_BITS   : natural := 8;
-	    STRIDE_STEPS    : natural := 1;
-	    ZERO_PADDING    : integer := 0
-	  );
-	  Port (  
-	    Aclk            : in std_logic;
-	    Aresetn         : in std_logic;
-	    Input_Image     : in GridType(  
-	      1 to IMAGE_SIZE,
-	      1 to IMAGE_SIZE,
-	      1 to CHANNEL_COUNT
-	      ) (GRADIENT_BITS - 1 downto 0);
-	    Kernel_Weights  : in GridType(  
-	      1 to KERNEL_SIZE,
-	      1 to KERNEL_SIZE,
-	      1 to CHANNEL_COUNT
-	      ) (GRADIENT_BITS - 1 downto 0);
-	    Feature_Map     : out GridType( 
-	      1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-	      1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-	      1 to CHANNEL_COUNT
-	      ) (GRADIENT_BITS - 1 downto 0)
-	  );
-	end convolution;
+    entity convolution is
+      Generic(
+        IMAGE_SIZE      : natural := 6;
+        KERNEL_SIZE     : natural := 3;
+        CHANNEL_COUNT   : natural := 3;
+        GRADIENT_BITS   : natural := 8;
+        STRIDE_STEPS    : natural := 1;
+        ZERO_PADDING    : integer := 0
+      );
+      Port (  
+        Aclk            : in std_logic;
+        Aresetn         : in std_logic;
+        Input_Image     : in GridType(  
+          1 to IMAGE_SIZE,
+          1 to IMAGE_SIZE,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        Kernel_Weights  : in GridType(  
+          1 to KERNEL_SIZE,
+          1 to KERNEL_SIZE,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        Feature_Map     : out GridType( 
+          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0)
+      );
+    end convolution;
 
-	architecture Behavioral of convolution is
+    architecture Behavioral of convolution is
 
-	  -- Prevents overflow during summation (subtract one because signed)
-	  constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
+      -- Prevents overflow during summation (subtract one because signed)
+      constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
 
-	  signal Image_Padded : GridType(
-	    1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-	    1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-	    1 to CHANNEL_COUNT
-	    ) (GRADIENT_BITS - 1 downto 0);
+      signal Image_Padded : GridType(
+        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
 
-	begin
+    begin
 
-	  -- Generate zero-padded image
-	  gen_row: for row in Image_Padded'range(1) generate
-	    gen_col: for col in Image_Padded'range(2) generate
-	      gen_chl: for channel in Image_Padded'range(3) generate
-	        -- Fill with input image when out of padding range
-	        gen_zp: if  (row > ZERO_PADDING) and 
-	              (col > ZERO_PADDING) and 
-	              (row <= Image_Padded'high(1)-ZERO_PADDING) and 
-	              (col <= Image_Padded'high(2)-ZERO_PADDING) generate
-	          Image_Padded(row, col, channel) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, channel);
-	        else generate
-	          Image_Padded(row, col, channel) <= (others => '0');
-	        end generate gen_zp;
-	      end generate gen_chl;
-	    end generate gen_col;
-	  end generate gen_row;
+      -- Generate zero-padded image
+      gen_row: for row in Image_Padded'range(1) generate
+        gen_col: for col in Image_Padded'range(2) generate
+          gen_chl: for channel in Image_Padded'range(3) generate
+            -- Fill with input image when out of padding range
+            gen_zp: if  (row > ZERO_PADDING) and 
+                        (col > ZERO_PADDING) and 
+                        (row <= Image_Padded'high(1)-ZERO_PADDING) and 
+                        (col <= Image_Padded'high(2)-ZERO_PADDING) generate
+              Image_Padded(row, col, channel) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, channel);
+            else generate
+              Image_Padded(row, col, channel) <= (others => '0');
+            end generate gen_zp;
+          end generate gen_chl;
+        end generate gen_col;
+      end generate gen_row;
 
-	  process(Aclk, Aresetn)
-	    variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
-	  begin
-	    if Aresetn = '0' then
-	      Feature_Map <= (others => (others => (others => (others => '0'))));
-	    elsif rising_edge(Aclk) then
-	      for row_iter in Feature_Map'range(1) loop
-	        for col_iter in Feature_Map'range(2) loop
-	          for channel in Feature_Map'range(3) loop
-	            -- Clear summation
-	            feature_sum := (others => '0');
-	            for row in Kernel_Weights'range(1) loop
-	              for column in Kernel_Weights'range(2) loop
-	                feature_sum := feature_sum
-	                  -- Add Input Image
-	                  + Image_Padded(
-	                    STRIDE_STEPS * (row_iter - 1) + row, 
-	                    STRIDE_STEPS * (col_iter - 1) + column, 
-	                    channel)
-	                  -- Multiplied by Kernel Weight
-	                  * Kernel_Weights(row, column, channel);
-	              end loop;
-	            end loop;
-	            -- Scale down Result
-	            Feature_Map(row_iter, col_iter, channel) 
-	            	<= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
-	          end loop;
-	        end loop;
-	      end loop;
-	    end if;
-	  end process;
-	end Behavioral;
+      process(Aclk, Aresetn)
+        variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
+      begin
+        if Aresetn = '0' then
+          Feature_Map <= (others => (others => (others => (others => '0'))));
+        elsif rising_edge(Aclk) then
+          for row_iter in Feature_Map'range(1) loop
+            for col_iter in Feature_Map'range(2) loop
+              for channel in Feature_Map'range(3) loop
+                -- Clear summation
+                feature_sum := (others => '0');
+                for row in Kernel_Weights'range(1) loop
+                  for column in Kernel_Weights'range(2) loop
+                    feature_sum := feature_sum
+                      -- Add Input Image
+                      + Image_Padded(
+                        STRIDE_STEPS * (row_iter - 1) + row, 
+                        STRIDE_STEPS * (col_iter - 1) + column, 
+                        channel)
+                      -- Multiplied by Kernel Weight
+                      * Kernel_Weights(row, column, channel);
+                  end loop;
+                end loop;
+                -- Scale down Result
+                Feature_Map(row_iter, col_iter, channel) 
+                    <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+              end loop;
+            end loop;
+          end loop;
+        end if;
+      end process;
+    end Behavioral;
 
 .. figure:: figs/convolution_elaborated_00-1.png
 
@@ -387,47 +375,776 @@ TODO
 Folded Convolution
 ------------------
 
+It quickly becomes apparent that a fully-unrolled convolution block is not a sustainable method of implementing large CNN models. This is due to high resource usage and difficulty with timing closure. In order to allieviate resource utilization, folding of MACC operations over multiple clocks allows logic to be reused iterratively over time. Unfortunately, VHDL does not provide a straightforward method for extending iterative loops over multiple clock cycles. Thus an iterator module was developed which can be instantiated for any scenario that requires iterating through multi-dimensional "GridType" arrays over multiple clock cycles. 
+
+**HDL: grid_iterator.vhd**
+
+.. code-block:: VHDL
+
+    library IEEE;
+    use IEEE.STD_LOGIC_1164.ALL;
+    use IEEE.NUMERIC_STD.ALL;
+    use IEEE.math_real.all;
+    library xil_defaultlib;
+    use xil_defaultlib.mypackage.ALL;
+
+    entity grid_iterator is
+      Generic(
+        GRID_SIZE    : natural := 8;
+        CHANNEL_COUNT   : natural := 3
+      );
+      Port (
+        Aclk    : in std_logic;
+        Aresetn : in std_logic;
+        hold    : in boolean;
+        row     : out integer range 1 to GRID_SIZE;
+        column  : out integer range 1 to GRID_SIZE;
+        channel : out integer range 1 to CHANNEL_COUNT
+      );
+    end grid_iterator;
+
+    architecture Behavioral of grid_iterator is
+
+    begin
+
+      process(Aclk, Aresetn)
+      begin
+        if Aresetn = '0' then
+          row <= 1;
+          column <= 1;
+          channel <= 1;
+        elsif rising_edge(Aclk) then
+          -- Pause iterations while hold is asserted
+          if not hold then 
+            if channel >= CHANNEL_COUNT then
+              if column >= GRID_SIZE then
+                if row >= GRID_SIZE then
+                  row <= 1;
+                else
+                  row <= row + 1;
+                end if;
+                column <= 1;
+              else
+                column <= column + 1;
+              end if;
+              channel <= 1;
+            else
+              channel <= channel + 1;
+            end if;
+          end if;
+        end if;
+      end process;
+
+    end Behavioral;
+
+The design quickly becomes much more complex when facilitating folding operations and organizing data-flow using methods that promote efficiency of resource usage. Additional control logic and signals were required for coordination between the convolution process and the input/output data streams. Two folded designs were developed and tested to observe how folding of MACC operations would affect FPGA utilization. The first design applied folding such that each kernel step required one clock cycle. This extended the convolution operation over a number of clocks equal to the number of neurons in the feature-map output. For example, an 8x8 3-channel input with a 4x4 kernel would require *3\*(8-4+1)^2 = 75* clocks. In this design, a 4x4 kernel will instantiate logic for 16 individual multipliers and 15 adders in order to process the MACC operation in a single clock. By time-multiplexing numerous MACC operations on a single instance, this design provided great improvements in resource usage. 
+
+**HDL: folded_conv_v1.vhd**
+
+.. code-block:: VHDL
+
+    library IEEE;
+    use IEEE.STD_LOGIC_1164.ALL;
+    use IEEE.NUMERIC_STD.ALL;
+    use IEEE.math_real.all;
+    library xil_defaultlib;
+    use xil_defaultlib.mypackage.ALL;
+
+    entity folded_conv_v1 is
+      Generic(
+        IMAGE_SIZE      : natural := 6;
+        KERNEL_SIZE     : natural := 4;
+        CHANNEL_COUNT   : natural := 1;
+        GRADIENT_BITS   : natural := 8;
+        STRIDE_STEPS    : natural := 1;
+        ZERO_PADDING    : integer := 0;
+        RELU_ACTIVATION : boolean := TRUE
+      );
+      Port (  
+        Aclk            : in std_logic;
+        Aresetn         : in std_logic;
+        Input_Image     : in GridType(  
+          1 to IMAGE_SIZE,
+          1 to IMAGE_SIZE,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        Input_Kernel    : in GridType(  
+          1 to KERNEL_SIZE,
+          1 to KERNEL_SIZE,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        Output_Feature  : out GridType( 
+          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        conv_complete : out boolean
+      );
+    end folded_conv_v1;
+
+    architecture Behavioral of folded_conv_v1 is
+
+      -- Prevents overflow during summation (subtract one because signed)
+      constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
+
+      signal Padded_Image : GridType(
+        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+      -- Convolution iterator signals
+      signal conv_row  : integer range Output_Feature'range(1);
+      signal conv_col  : integer range Output_Feature'range(2);
+      signal conv_chn  : integer range Output_Feature'range(3);
+
+    begin
+
+      ----------- Generate zero-padded image -----------
+      gen_row : for row in Padded_Image'range(1) generate
+        gen_col : for col in Padded_Image'range(2) generate
+          gen_chn : for chn in Padded_Image'range(3) generate
+            -- Fill with input image when out of padding range
+            gen_zp : if (row > ZERO_PADDING) and 
+                  (col > ZERO_PADDING) and 
+                  (row <= Padded_Image'high(1) - ZERO_PADDING) and 
+                  (col <= Padded_Image'high(2) - ZERO_PADDING) generate
+              Padded_Image(row, col, chn) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
+            else generate
+              Padded_Image(row, col, chn) <= (others => '0');
+            end generate gen_zp;
+          end generate gen_chn;
+        end generate gen_col;
+      end generate gen_row;
+      --------------------------------------------------
+
+      --------------- Compute convolution --------------
+      process(Aclk, Aresetn)
+        variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
+      begin
+        if Aresetn = '0' then
+          Output_Feature <= (others => (others => (others => (others => '0'))));
+        elsif rising_edge(Aclk) then
+          -- Clear summation
+          feature_sum := (others => '0');
+          -- Un-rolled MACC operations
+          for mac_row in Input_Kernel'range(1) loop
+            for mac_col in Input_Kernel'range(2) loop
+              ----- Multiply Accumulate -----
+              feature_sum := feature_sum
+                -- Add Input Neuron
+                + Padded_Image(
+                  STRIDE_STEPS * (conv_row - 1) + mac_row, 
+                  STRIDE_STEPS * (conv_col - 1) + mac_col, 
+                  conv_chn)
+                -- Multiplied by Kernel Weight
+                * Input_Kernel(mac_row, mac_col, conv_chn);
+              -------------------------------
+            end loop;
+          end loop;
+          -- Apply ReLU activation
+          if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
+            Output_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
+          else
+            -- Scale down Result
+            Output_Feature(conv_row, conv_col, conv_chn) 
+              <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+          end if;
+        end if;
+      end process;
+
+      -- Convolution folding iterator state machine
+      iterator_conv_folding : grid_iterator
+        generic map (
+          GRID_SIZE       => Output_Feature'high(1),
+          CHANNEL_COUNT   => Output_Feature'high(3)
+          )
+        port map (
+          Aclk    => Aclk,
+          Aresetn => Aresetn,
+          hold    => conv_complete,
+          row     => conv_row,
+          column  => conv_col,
+          channel => conv_chn
+          );
+      conv_complete <= (conv_row = Output_Feature'high(1)) and (conv_col = Output_Feature'high(2));
+      --------------------------------------------------
+
+    end Behavioral;
+
+Large kernels on this design will continue to prove difficult for resource constrained applications and is especially difficult for timing closure. The number of values to be summed in a MACC operation is equal to the number of weights in the kernel. For example, an 8x8 kernel would require 63 addition operations to be resolved before the next rising clock edge. As kernel sizes increase even further, place-and-route tools will have difficulty implementing physical logic that satisfies even a relatively slow running clock. Techniques can be used to guide the implementation tool towards a solution that will potentially satisfy timing. This could be done by describing VHDL with parallel adder operations on half the products with the other half and repeating the technique all the way down the chain until there is a single result. Rather than chaining together 63 adders in sequence, the tool would implement the same 63 additions in a sequence of 32-16-8-4-2-1 parallel adders decreasing the chain sequence down to just 6 steps. Another technique would be to apply timing constraints that allow for multi-cycle paths which would provide additional clock periods for the process to resolve. This would also require special considerations in iteration rates and clocking of data going in and out of the MACC unit and would increase design complexity accordingly.
+
 TODO:
-* For all design versions
-	* Add architectural block design
-	* Add code w/ description
-	* Add simulation results
+* Design conv-folding with parallel additions and see how it affects time efficiency.
+* Design mac-folding w/o conv-folding and analyze results.
 
-It quickly becomes apparent that a fully-unrolled convolution block is not a sustainable method of implementing large CNN models. This is due to high resource usage and difficulty with timing closure. In order to allieviate resource utilization, folding of MACC operations over multiple clocks allows logic to be reused iterratively over time. Unfortunately, VHDL does not provide a straightforward method for extending iterative loops over multiple clock cycles. Thus an iterator module was developed which can be instantiated for any scenario that requires iterating through multi-dimensional "GridType" arrays over multiple clocks. The design quickly becomes much more complex when facilitating folding operations and organizing data-flow using methods that promote efficiency of resource usage. Additional control logic and signals were required for coordination between the convolution process and the input/output data streams. Two designs were developed and tested to observe how folding of MACC operations would affect FPGA utilization. The first design applied folding such that each kernel step required one clock cycle. This extended the convolution operation over a number of clocks equal to the number of neurons in the feature-map output. For example, an 8x8 3-channel input with a 4x4 kernel would require *3\*(8-4+1)^2 = 75* clocks. In this design, a 4x4 kernel will instantiate logic for 16 individual multipliers and 15 adders in order to resolve the MACC operation in a single clock. By time-multiplexing numerous MACC operations on a single MACC instance, this design provided great improvements in resource usage. 
+The next design applies additional folding of the convolution block such that a single MAC will now sequentially process the entire convolution using just one multiply and one addition. The number of clocks required for this implementation will be equal to the number of neuron outputs multiplied by the number of weights in the kernel. The same 8x8 3-channel input with a 4x4 kernel will now require *3\*4^2\*(8-4+1)^2 = 1200* clock cycles to complete. Although this will provide additional resource savings, it will be at the cost of much greater latency and throughput. Additional resources are required to facilitate coordination of iterative operation sequences and in-turn drives up design complexity. The high degree of folding applied using iterator modules and data-flow logic in this design demonstrated poor resource utilization trade-offs given the massive increase in throughput and latency. Much of the logic resources saved by the reduction in MACC units was consumed by the additional iterator control logic required to orchestrate the folding process. This implementation method can certainly be changed, optimized, and improved upon in order to achieve greater efficiency trade-offs. The effort to make these improvements is difficult to justify though because a "fully-folded" sequential architecture will in a way defeat the purpose of using FPGAs to begin with. Regardless, this design exercise was beneficial for both the analysis and experience provided.
 
-Large kernels on this design will continue to prove difficult for resource constrained applications and is especially difficult for timing closure. The number of values to be summed in a MACC operation is equal to the number of weights in the kernel. For example, an 8x8 kernel would require 63 addition operations to be resolved before the next rising clock edge. As kernel sizes increase even further, place-and-route tools will have difficulty implementing physical logic that satisfies even a relatively slow running clock. Techniques can be used to guide the implementation tool towards a solution that will potentially satisfy timing. This could be done by describing VHDL with parallel adder operations on half the products with the other half and repeating the technique all the way down the chain until there is a single result. Rather than chaining together 63 adders in sequence, the tool would implement the same 63 additions in a sequence of 32-16-8-4-2-1 parallel adders decreasing the chain length down to just 6.  Another technique would be to apply timing constraints that allow for multi-cycle paths which would provide additional clock periods for the process to resolve. This would also require special considerations in iteration rates and clocking of data going in and out of the MACC unit and would certainly increase design complexity.
+This design incorporates an input and output data streaming architecture using the following streaming modules.
 
-The next design applies additional folding of the convolution block such that a single MAC will now sequentially process the entire convolution using just one multiply and one addition. The number of clocks required for this implementation will be equal to the number of neuron outputs multiplied by the number of weights in the kernel. The same 8x8 3-channel input with a 4x4 kernel will now require *3\*4^2\*(8-4+1)^2 = 1200* clock cycles to complete. Although this will provide additional resource savings, it will be at the cost of much greater latency and throughput. Additional resources are required to facilitate coordination of iterative operation sequences and in-turn drives up design complexity. The high degree of folding applied using iterator modules and data-flow logic in this design demonstrated poor resource utilization trade-offs given the massive increase in throughput and latency. It appears the majority of logic resources saved by the reduction in MACC units was consumed by the additional iterator control logic required to orchestrate the folding process. This implementation method can certainly be changed, optimized, and improved upon in order to achieve greater efficiency trade-offs. The effort to make these improvements is difficult to justify though because a "fully-folded" sequential architecture will in a way defeats the purpose of using FPGAs to begin with. Regardless, this design exercise was beneficial for both the analysis and experience provided.
+**HDL: stream_grid_rx.vhd**
 
-TODO:
-- Design conv-folding with parallel additions and see how it affects time efficiency.
-- Design mac-folding w/o conv-folding and analyze results.
+.. code-block:: VHDL
+
+    library IEEE;
+    use IEEE.STD_LOGIC_1164.ALL;
+    use IEEE.NUMERIC_STD.ALL;
+    use IEEE.math_real.all;
+    library xil_defaultlib;
+    use xil_defaultlib.mypackage.ALL;
+
+    entity stream_grid_rx is
+      Generic (
+        GRID_SIZE       : natural := 6;
+        CHANNEL_COUNT   : natural := 3;
+        GRADIENT_BITS   : natural := 8
+      );
+      Port (
+        Aclk     : in std_logic;
+        Aresetn  : in std_logic;
+        -- AXIS
+        Stream_Data     : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+        Stream_Valid    : in boolean;
+        Stream_Ready    : out boolean;
+        -- Data
+        Grid_Data : out GridType(
+          1 to GRID_SIZE,
+          1 to GRID_SIZE,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        -- Control
+        Transfer_Complete   : in boolean;
+        Stream_Complete     : out boolean
+      );
+    end stream_grid_rx;
+
+    architecture Behavioral of stream_grid_rx is
+
+      signal grid_hold : boolean;
+      signal grid_row : integer range Grid_Data'range(1);
+      signal grid_col : integer range Grid_Data'range(2);
+      signal grid_chn : integer range Grid_Data'range(3);
+
+    begin
+
+      process(Aclk, Aresetn)
+      begin
+        if Aresetn = '0' then
+          Stream_Complete <= FALSE;
+          Grid_Data <= (others => (others => (others => (others => '0'))));
+        elsif rising_edge(Aclk) then
+          -------------------------
+          if not grid_hold then
+            Grid_Data(grid_row, grid_col, grid_chn) <= signed(Stream_Data);
+          end if;
+          -------------------------
+          if (not Stream_Complete) and (grid_row = Grid_Data'high(1)) 
+                                   and (grid_col = Grid_Data'high(2)) 
+                                   and (grid_chn = Grid_Data'high(3)) then
+            Stream_Complete <= TRUE;
+          elsif Transfer_Complete then
+            Stream_Complete <= FALSE;
+          end if;
+          -------------------------
+        end if;
+      end process;
+
+      iterator_stream_grid : grid_iterator
+        generic map (
+          GRID_SIZE       => Grid_Data'high(1),
+          CHANNEL_COUNT   => Grid_Data'high(3)
+          )
+        port map (
+          Aclk    => Aclk,
+          Aresetn => Aresetn,
+          hold    => grid_hold,
+          row     => grid_row,
+          column  => grid_col,
+          channel => grid_chn
+          );
+      
+      Stream_Ready <= Transfer_Complete or (not Stream_Complete);
+      grid_hold    <= (not Stream_Valid) or (not Stream_Ready);
+
+    end Behavioral;
+
+**HDL: stream_grid_tx.vhd**
+
+.. code-block:: VHDL
+
+    library IEEE;
+    use IEEE.STD_LOGIC_1164.ALL;
+    use IEEE.NUMERIC_STD.ALL;
+    use IEEE.math_real.all;
+    library xil_defaultlib;
+    use xil_defaultlib.mypackage.ALL;
+
+    entity stream_grid_tx is
+      Generic (
+        GRID_SIZE       : natural := 6;
+        CHANNEL_COUNT   : natural := 3;
+        GRADIENT_BITS   : natural := 8
+      );
+      Port (
+        Aclk     : in std_logic;
+        Aresetn  : in std_logic;
+        -- AXIS
+        Stream_Data     : out std_logic_vector(GRADIENT_BITS-1 downto 0);
+        Stream_Valid    : out boolean;
+        Stream_Ready    : in boolean;
+        -- Data
+        Grid_Data : in GridType(
+          1 to GRID_SIZE,
+          1 to GRID_SIZE,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        -- Control
+        Transfer_Complete   : in boolean;
+        Stream_Complete     : out boolean
+      );
+    end stream_grid_tx;
+
+    architecture Behavioral of stream_grid_tx is
+
+      signal grid_hold : boolean;
+      signal grid_row : integer range Grid_Data'range(1);
+      signal grid_col : integer range Grid_Data'range(2);
+      signal grid_chn : integer range Grid_Data'range(3);
+
+    begin
+
+      process(Aclk, Aresetn)
+      begin
+        if Aresetn = '0' then
+          Stream_Complete <= FALSE;
+          Stream_Data <= (others => '0');
+        elsif rising_edge(Aclk) then
+          -------------------------
+          if not grid_hold then
+            Stream_Data <= std_logic_vector(Grid_Data(grid_row, grid_col, grid_chn));
+          end if;
+          -------------------------
+          if (not Stream_Complete) and (grid_row = Grid_Data'high(1)) 
+                                   and (grid_col = Grid_Data'high(2)) 
+                                   and (grid_chn = Grid_Data'high(3)) then
+            Stream_Complete <= TRUE;
+          elsif Transfer_Complete then
+            Stream_Complete <= FALSE;
+          end if;
+          -------------------------
+        end if;
+      end process;
+
+      iterator_stream_grid : grid_iterator
+        generic map (
+          GRID_SIZE       => Grid_Data'high(1),
+          CHANNEL_COUNT   => Grid_Data'high(3)
+          )
+        port map (
+          Aclk    => Aclk,
+          Aresetn => Aresetn,
+          hold    => grid_hold,
+          row     => grid_row,
+          column  => grid_col,
+          channel => grid_chn
+          );
+
+      Stream_Valid <= Transfer_Complete or (not Stream_Complete);
+      grid_hold    <= (not Stream_Valid) or (not Stream_Ready);
+
+    end Behavioral;
+
+An additional module was created for the convolution operation to allow for independent evaluation of implemented MACC resource utilization. Notice how in this version of the convolution operation there are no **for-loop** statements to apply loop unrolling.
+
+**HDL: process_conv.vhd**
+
+.. code-block:: VHDL
+
+    library IEEE;
+    use IEEE.STD_LOGIC_1164.ALL;
+    use IEEE.NUMERIC_STD.ALL;
+    use IEEE.math_real.all;
+    library xil_defaultlib;
+    use xil_defaultlib.mypackage.ALL;
+
+    entity process_conv is
+      Generic (
+        IMAGE_SIZE      : natural := 24;    -- I
+        KERNEL_SIZE     : natural := 9;     -- K
+        CHANNEL_COUNT   : natural := 3;     -- Ch
+        GRADIENT_BITS   : natural := 8;     -- B
+        STRIDE_STEPS    : natural := 1;     -- S
+        ZERO_PADDING    : integer := 0;     -- P
+        RELU_ACTIVATION : boolean := TRUE
+        -- Feature Size: F = (I+2*P-K)/S + 1
+        -- Clock Cycles: C = Ch * K**2 * F**2
+        );
+      Port (
+        Aclk    : in std_logic;
+        Aresetn : in std_logic;
+        Conv_Image : in GridType(
+          1 to IMAGE_SIZE,
+          1 to IMAGE_SIZE,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        Conv_Kernel : in GridType(
+          1 to KERNEL_SIZE,
+          1 to KERNEL_SIZE,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        Conv_Feature : out GridType(
+          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+          1 to CHANNEL_COUNT
+          ) (GRADIENT_BITS - 1 downto 0);
+        mac_hold          : in boolean;
+        mac_row           : in integer range 1 to KERNEL_SIZE;
+        mac_col           : in integer range 1 to KERNEL_SIZE;
+        conv_hold         : in boolean;
+        conv_row          : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) 
+                                                 / STRIDE_STEPS + 1;
+        conv_col          : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) 
+                                                 / STRIDE_STEPS + 1;
+        conv_chn          : in integer range 1 to CHANNEL_COUNT;
+        transfer_complete : in boolean;
+        conv_complete     : out boolean
+        );
+    end process_conv;
+
+    architecture Behavioral of process_conv is
+
+      -- Prevents overflow during summation (subtract one because signed)
+      constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
+
+      signal Padded_Image : GridType(
+        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+    begin
+
+      ----------- Generate zero-padded image -----------
+      gen_row : for row in Padded_Image'range(1) generate
+        gen_col : for col in Padded_Image'range(2) generate
+          gen_chn : for chn in Padded_Image'range(3) generate
+            -- Fill with input image when out of padding range
+            gen_zp : if (row > ZERO_PADDING) and 
+                  (col > ZERO_PADDING) and 
+                  (row <= Padded_Image'high(1) - ZERO_PADDING) and 
+                  (col <= Padded_Image'high(2) - ZERO_PADDING) generate
+              Padded_Image(row, col, chn) <= Conv_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
+            else generate
+              Padded_Image(row, col, chn) <= (others => '0');
+            end generate gen_zp;
+          end generate gen_chn;
+        end generate gen_col;
+      end generate gen_row;
+      --------------------------------------------------
+
+      --------------- Compute convolution --------------
+      convolution_process : process(Aclk, Aresetn)
+        variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
+      begin
+        if Aresetn = '0' then
+          conv_complete <= FALSE;
+          feature_sum := (others => '0');
+          Conv_Feature <= (others => (others => (others => (others => '0'))));
+        elsif rising_edge(Aclk) then
+          if not conv_complete then
+            ----- Multiply Accumulate -----
+            feature_sum := feature_sum
+              -- Add Input Neuron
+              + Padded_Image(
+                STRIDE_STEPS * (conv_row - 1) + mac_row, 
+                STRIDE_STEPS * (conv_col - 1) + mac_col, 
+                conv_chn)
+              -- Multiplied by Kernel Weight
+              * Conv_Kernel(mac_row, mac_col, conv_chn);
+            -------------------------------
+            if not conv_hold then
+              -- Apply ReLU activation
+              if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
+                Conv_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
+              else
+                -- Scale down Result
+                Conv_Feature(conv_row, conv_col, conv_chn) 
+                  <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+              end if;
+              feature_sum := (others => '0');
+              -- Check if convolution is complete
+              if mac_hold then
+                conv_complete <= TRUE;
+              end if;
+            end if;
+            -------------------------------
+          elsif transfer_complete then
+            conv_complete <= FALSE;
+          end if;
+        end if;
+      end process;
+      --------------------------------------------------
+
+    end Behavioral;
+
+Below is the full implementation of the fully-folded convolution module that incorporates the data-flow control process and instantiates the input/output data streaming module as well as the convolution process module.
+
+**HDL: folded_conv_v2.vhd**
+
+.. code-block:: VHDL
+
+    library IEEE;
+    use IEEE.STD_LOGIC_1164.ALL;
+    use IEEE.NUMERIC_STD.ALL;
+    use IEEE.math_real.all;
+    library xil_defaultlib;
+    use xil_defaultlib.mypackage.ALL;
+
+    entity folded_conv_v2 is
+      Generic (
+        IMAGE_SIZE      : natural := 24;    -- I
+        KERNEL_SIZE     : natural := 9;     -- K
+        CHANNEL_COUNT   : natural := 3;     -- Ch
+        GRADIENT_BITS   : natural := 8;     -- B
+        STRIDE_STEPS    : natural := 1;     -- S
+        ZERO_PADDING    : integer := 0;     -- P
+        RELU_ACTIVATION : boolean := TRUE
+        -- Feature Size: F = (I+2*P-K)/S + 1
+        -- Clock Cycles: C = Ch*F**2
+      );
+      Port (
+        Aclk           : in std_logic;
+        Aresetn        : in std_logic;
+        Image_Stream   : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+        Image_Valid    : in boolean;
+        Image_Ready    : out boolean;
+        Kernel_Stream  : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+        Kernel_Valid   : in boolean;
+        Kernel_Ready   : out boolean;
+        Feature_Stream : out std_logic_vector(GRADIENT_BITS-1 downto 0);
+        Feature_Valid  : out boolean;
+        Feature_Ready  : in boolean
+      );
+    end folded_conv_v2;
+
+    architecture Behavioral of folded_conv_v2 is
+
+      -- Prevents overflow during summation (subtract one because signed)
+      constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
+
+      signal Input_Image : GridType(
+        1 to IMAGE_SIZE,
+        1 to IMAGE_SIZE,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+      signal Conv_Image : GridType(
+        1 to IMAGE_SIZE,
+        1 to IMAGE_SIZE,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+      signal Input_Kernel : GridType(
+        1 to KERNEL_SIZE,
+        1 to KERNEL_SIZE,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+      signal Conv_Kernel : GridType(
+        1 to KERNEL_SIZE,
+        1 to KERNEL_SIZE,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+      signal Conv_Feature : GridType(
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+
+      signal Output_Feature : GridType(
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+      
+      -- MAC iterator signals
+      signal mac_hold : boolean;
+      signal mac_row  : integer range Conv_Kernel'range(1);
+      signal mac_col  : integer range Conv_Kernel'range(2);
+
+      -- Convolution iterator signals
+      signal conv_hold : boolean;
+      signal conv_row : integer range Conv_Feature'range(1);
+      signal conv_col : integer range Conv_Feature'range(2);
+      signal conv_chn : integer range Conv_Feature'range(3);
+
+      -- Data-flow control signals
+      signal image_complete       : boolean;
+      signal kernel_complete      : boolean;
+      signal conv_complete        : boolean;
+      signal feature_complete     : boolean;
+      signal transfer_complete    : boolean;
+
+    begin
+
+      --------------- Data-flow controller -------------
+      process_dataflow_control : process(Aclk, Aresetn)
+      begin
+        if Aresetn = '0' then
+          transfer_complete <= FALSE;
+          Conv_Kernel     <= (others => (others => (others => (others => '0'))));
+          Conv_Image      <= (others => (others => (others => (others => '0'))));
+          Output_Feature  <= (others => (others => (others => (others => '0'))));
+        elsif rising_edge(Aclk) then
+          if transfer_complete then
+            transfer_complete <= FALSE;
+          elsif image_complete and kernel_complete and conv_complete and feature_complete then
+            Conv_Kernel     <= Input_Kernel;
+            Conv_Image      <= Input_Image;
+            Output_Feature  <= Conv_Feature;
+            transfer_complete <= TRUE;
+          end if;
+        end if;
+      end process;
+      --------------------------------------------------
+
+      ---------------- RX in image grid ----------------
+      grid_rx_image : stream_grid_rx
+        generic map(
+          GRID_SIZE       => Input_Image'high(1),
+          CHANNEL_COUNT   => Input_Image'high(3),
+          GRADIENT_BITS   => GRADIENT_BITS
+          )
+        port map(
+          Aclk                => Aclk,
+          Aresetn             => Aresetn,
+          Stream_Data         => Image_Stream,
+          Stream_Valid        => Image_Valid,
+          Stream_Ready        => Image_Ready,
+          Grid_Data           => Input_Image,
+          Transfer_Complete   => transfer_complete,
+          Stream_Complete     => image_complete
+          );
+      --------------------------------------------------
+
+      ---------------- RX in kernel grid ----------------
+      grid_rx_kernel : stream_grid_rx
+        generic map(
+          GRID_SIZE       => Input_Kernel'high(1),
+          CHANNEL_COUNT   => Input_Kernel'high(3),
+          GRADIENT_BITS   => GRADIENT_BITS
+          )
+        port map(
+          Aclk                => Aclk,
+          Aresetn             => Aresetn,
+          Stream_Data         => Kernel_Stream,
+          Stream_Valid        => Kernel_Valid,
+          Stream_Ready        => Kernel_Ready,
+          Grid_Data           => Input_Kernel,
+          Transfer_Complete   => transfer_complete,
+          Stream_Complete     => kernel_complete
+          );
+      --------------------------------------------------
+
+      --------------- Compute convolution --------------
+      convolution_process : process_conv
+        generic map (
+          IMAGE_SIZE      => IMAGE_SIZE,
+          KERNEL_SIZE     => KERNEL_SIZE,
+          CHANNEL_COUNT   => CHANNEL_COUNT,
+          GRADIENT_BITS   => GRADIENT_BITS,
+          STRIDE_STEPS    => STRIDE_STEPS,
+          ZERO_PADDING    => ZERO_PADDING,
+          RELU_ACTIVATION => RELU_ACTIVATION
+          )
+        port map (
+          Aclk                => Aclk,
+          Aresetn             => Aresetn,
+          Conv_Image          => Conv_Image,
+          Conv_Kernel         => Conv_Kernel,
+          Conv_Feature        => Conv_Feature,
+          conv_complete       => conv_complete,
+          mac_hold            => mac_hold,
+          mac_row             => mac_row,
+          mac_col             => mac_col,
+          conv_hold           => conv_hold,
+          conv_row            => conv_row,
+          conv_col            => conv_col,
+          conv_chn            => conv_chn,
+          transfer_complete   => transfer_complete
+          );
+
+      -- MAC folding iterator state machine
+      iterator_mac_folding : grid_iterator
+        generic map (
+          GRID_SIZE       => Conv_Kernel'high(1),
+          CHANNEL_COUNT   => 1
+          )
+        port map (
+          Aclk    => Aclk,
+          Aresetn => Aresetn,
+          hold    => mac_hold,
+          row     => mac_row,
+          column  => mac_col,
+          channel => open
+          );
+      mac_hold <= (conv_complete and (not transfer_complete))
+            or ((mac_row = Conv_Kernel'high(1)) 
+            and (mac_col = Conv_Kernel'high(2)) 
+            and (conv_row = Conv_Feature'high(1)) 
+            and (conv_col = Conv_Feature'high(2)) 
+            and (conv_chn = Conv_Feature'high(3)));
+
+      -- Convolution folding iterator state machine
+      iterator_conv_folding : grid_iterator
+        generic map (
+          GRID_SIZE       => Conv_Feature'high(1),
+          CHANNEL_COUNT   => Conv_Feature'high(3)
+          )
+        port map (
+          Aclk    => Aclk,
+          Aresetn => Aresetn,
+          hold    => conv_hold,
+          row     => conv_row,
+          column  => conv_col,
+          channel => conv_chn
+          );
+      conv_hold <= (not ((mac_row = Conv_Kernel'high(1)) 
+                     and (mac_col = Conv_Kernel'high(2)))) or conv_complete;
+      --------------------------------------------------
+
+      -------------- TX out feature grid ---------------
+      grid_tx_feature : stream_grid_tx
+        generic map(
+          GRID_SIZE       => Output_Feature'high(1),
+          CHANNEL_COUNT   => Output_Feature'high(3),
+          GRADIENT_BITS   => GRADIENT_BITS
+          )
+        port map(
+          Aclk                => Aclk,
+          Aresetn             => Aresetn,
+          Stream_Data         => Feature_Stream,
+          Stream_Valid        => Feature_Valid,
+          Stream_Ready        => Feature_Ready,
+          Grid_Data           => Output_Feature,
+          Transfer_Complete   => transfer_complete,
+          Stream_Complete     => feature_complete
+          );
+      --------------------------------------------------
+
+    end Behavioral;
 
 
-
-
-
-
-
-
-Performance Evaluation
-======================
-
-* Optimization
-* Performance Density
 
 Direction of Future Work
 ========================
 
 
+
+
 Conclusion
 ==========
-
-
-
-
-
-
 
 
 
