@@ -256,6 +256,9 @@ package mypackage is
         );
     end component;
 
+end package mypackage;
+
+
     ---- Functions
     --subtype ByteVector is unsigned(7 downto 0);
     --function get_rando (maxint, slvsize : positive) 
@@ -263,8 +266,6 @@ package mypackage is
 
     --function random_grid (maxint, slvsize : positive; input_grid : GridType)
     --    return GridType;
-
-end package mypackage;
 
 
 --package body mypackage is
