@@ -8,6 +8,7 @@
 *.str
 hdl/*.o
 hdl/*.cf
+hdl/data/
 papers/
 figs/
 dmount/

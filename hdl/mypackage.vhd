@@ -24,19 +24,19 @@ package mypackage is
             Aclk            : in std_logic;
             Aresetn         : in std_logic;
             Input_Image     : in GridType(  
+                1 to CHANNELS_IN,
                 1 to IMAGE_SIZE,
-                1 to IMAGE_SIZE,
-                1 to CHANNELS_IN
+                1 to IMAGE_SIZE
                 ) (GRADIENT_BITS - 1 downto 0);
-            Kernel_Weights  : in GridType(  
+            Kernel_Weights  : in GridType(
+                1 to CHANNELS_IN * CHANNELS_OUT,
                 1 to KERNEL_SIZE,
                 1 to KERNEL_SIZE,
-                1 to CHANNELS_IN * CHANNELS_OUT
                 ) (GRADIENT_BITS - 1 downto 0);
             Output_Feature  : out GridType( 
+                1 to CHANNELS_OUT,
                 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-                1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-                1 to CHANNELS_OUT
+                1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1
                 ) (GRADIENT_BITS - 1 downto 0)
         );
     end component;

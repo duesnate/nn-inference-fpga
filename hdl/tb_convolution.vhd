@@ -26,19 +26,19 @@ architecture Behavioral of tb_convolution is
     signal Aclk            : std_logic := '1';
     signal Aresetn         : std_logic := '0';
     signal Input_Image     : GridType(
+        1 to CHANNELS_IN,
         1 to IMAGE_SIZE, 
-        1 to IMAGE_SIZE, 
-        1 to CHANNELS_IN
+        1 to IMAGE_SIZE
         ) (GRADIENT_BITS - 1 downto 0);
     signal Kernel_Weights  : GridType(
+        1 to CHANNELS_IN * CHANNELS_OUT,
         1 to KERNEL_SIZE, 
-        1 to KERNEL_SIZE, 
-        1 to CHANNELS_IN * CHANNELS_OUT
+        1 to KERNEL_SIZE
         ) (GRADIENT_BITS - 1 downto 0);
     signal Output_Feature  : GridType(
+        1 to CHANNELS_OUT,
         1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-        1 to CHANNELS_OUT
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1
         ) (GRADIENT_BITS - 1 downto 0);
 
 begin
@@ -49,9 +49,9 @@ begin
         generic map (
             IMAGE_SIZE      => IMAGE_SIZE,
             KERNEL_SIZE     => KERNEL_SIZE,
-            CHANNELS_IN      => CHANNELS_IN,
+            CHANNELS_IN     => CHANNELS_IN,
             GRADIENT_BITS   => GRADIENT_BITS,
-            CHANNELS_OUT     => CHANNELS_OUT,
+            CHANNELS_OUT    => CHANNELS_OUT,
             STRIDE_STEPS    => STRIDE_STEPS,
             ZERO_PADDING    => ZERO_PADDING,
             RELU_ACTIVATION => RELU_ACTIVATION
@@ -87,28 +87,28 @@ begin
             random_grid(2**GRADIENT_BITS, GRADIENT_BITS, s1, s2, Kernel_Weights);
             wait for 10 ns;
             -- Write input data to file
-            for row in Input_Image'range(1) loop
-                for col in Input_Image'range(2) loop
-                    for chn in Input_Image'range(3) loop
-                        write(line_buf, integer'image(to_integer(Input_Image(row, col, chn))));
+            for chn in Input_Image'range(1) loop
+                for row in Input_Image'range(2) loop
+                    for col in Input_Image'range(3) loop
+                        write(line_buf, integer'image(to_integer(Input_Image(chn, row, col))));
                         writeline(file_input, line_buf);
                     end loop;
                end loop;
             end loop;
             -- Write kernel weights to file
-            for row in Kernel_Weights'range(1) loop
-                for col in Kernel_Weights'range(2) loop
-                    for chn in Kernel_Weights'range(3) loop
-                        write(line_buf, integer'image(to_integer(Kernel_Weights(row, col, chn))));
+            for chn in Kernel_Weights'range(1) loop
+                for row in Kernel_Weights'range(2) loop
+                    for col in Kernel_Weights'range(3) loop
+                        write(line_buf, integer'image(to_integer(Kernel_Weights(chn, row, col))));
                         writeline(file_kernel, line_buf);
                     end loop;
                end loop;
             end loop;
             -- Write output data to file
-            for row in Output_Feature'range(1) loop
-                for col in Output_Feature'range(2) loop
-                    for chn in Output_Feature'range(3) loop
-                        write(line_buf, integer'image(to_integer(Output_Feature(row, col, chn))));
+            for chn in Output_Feature'range(1) loop
+                for row in Output_Feature'range(2) loop
+                    for col in Output_Feature'range(3) loop
+                        write(line_buf, integer'image(to_integer(Output_Feature(chn, row, col))));
                         writeline(file_output, line_buf);
                     end loop;
                end loop;
