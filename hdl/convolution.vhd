@@ -28,13 +28,13 @@ use xil_defaultlib.mypackage.ALL;
 
 entity convolution is
     Generic(
-        IMAGE_SIZE      : natural := 6;
-        KERNEL_SIZE     : natural := 3;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8;
-        STRIDE_STEPS    : natural := 1;
-        ZERO_PADDING    : integer := 0;
-        RELU_ACTIVATION : boolean := TRUE
+        IMAGE_SIZE      : natural;
+        KERNEL_SIZE     : natural;
+        CHANNEL_COUNT   : natural;
+        GRADIENT_BITS   : natural;
+        STRIDE_STEPS    : natural;
+        ZERO_PADDING    : integer;
+        RELU_ACTIVATION : boolean
     );
     Port (  
         Aclk            : in std_logic;
@@ -62,6 +62,7 @@ architecture Behavioral of convolution is
     -- Prevents overflow during summation (subtract one because signed)
     constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
 
+    -- Grid after applying zero-padding
     signal Padded_Image : GridType(
         1 to IMAGE_SIZE + 2 * ZERO_PADDING,
         1 to IMAGE_SIZE + 2 * ZERO_PADDING,
@@ -79,7 +80,7 @@ begin
                             (col > ZERO_PADDING) and 
                             (row <= Padded_Image'high(1) - ZERO_PADDING) and 
                             (col <= Padded_Image'high(2) - ZERO_PADDING) generate
-                    Padded_Image(row, col, chn) <= Conv_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
+                    Padded_Image(row, col, chn) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
                 else generate
                     Padded_Image(row, col, chn) <= (others => '0');
                 end generate gen_zp;
@@ -88,7 +89,8 @@ begin
     end generate gen_row;
     --------------------------------------------------
 
-    process(Aclk, Aresetn)
+    --------------- Convolution Process --------------
+    convolution_process : process(Aclk, Aresetn)
         variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
     begin
         if Aresetn = '0' then
@@ -109,7 +111,7 @@ begin
                                         STRIDE_STEPS * (conv_col - 1) + mac_col, 
                                         conv_chn)
                                     -- Multiplied by Kernel Weight
-                                    * Conv_Kernel(mac_row, mac_col, conv_chn);
+                                    * Kernel_Weights(mac_row, mac_col, conv_chn);
                                 -------------------------------
                             end loop;
                         end loop;
@@ -118,7 +120,8 @@ begin
                             Output_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
                         else
                             -- Scale down Result
-                            Output_Feature(conv_row, conv_col, conv_chn) <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+                            Output_Feature(conv_row, conv_col, conv_chn) 
+                                <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
                         end if;
                     end loop;
                 end loop;

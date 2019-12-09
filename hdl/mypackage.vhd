@@ -11,31 +11,32 @@ package mypackage is
 
     component convolution
         Generic(
-            IMAGE_SIZE      : natural := 6;
-            KERNEL_SIZE     : natural := 3;
-            CHANNEL_COUNT   : natural := 3;
-            GRADIENT_BITS   : natural := 8;
-            STRIDE_STEPS    : natural := 1;
-            ZERO_PADDING    : integer := 0
+            IMAGE_SIZE      : natural;
+            KERNEL_SIZE     : natural;
+            CHANNEL_COUNT   : natural;
+            GRADIENT_BITS   : natural;
+            STRIDE_STEPS    : natural;
+            ZERO_PADDING    : integer;
+            RELU_ACTIVATION : boolean
         );
-        Port (  
+        Port ( 
             Aclk            : in std_logic;
             Aresetn         : in std_logic;
             Input_Image     : in GridType(  
                 1 to IMAGE_SIZE,
                 1 to IMAGE_SIZE,
                 1 to CHANNEL_COUNT
-                ) (GRADIENT_BITS-1 downto 0);
+                ) (GRADIENT_BITS - 1 downto 0);
             Kernel_Weights  : in GridType(  
                 1 to KERNEL_SIZE,
                 1 to KERNEL_SIZE,
                 1 to CHANNEL_COUNT
-                ) (GRADIENT_BITS-1 downto 0);
-            Feature_Map     : out GridType( 
-                1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
-                1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
+                ) (GRADIENT_BITS - 1 downto 0);
+            Output_Feature  : out GridType( 
+                1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+                1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
                 1 to CHANNEL_COUNT
-                ) (GRADIENT_BITS-1 downto 0)
+                ) (GRADIENT_BITS - 1 downto 0)
         );
     end component;
 
@@ -256,44 +257,49 @@ package mypackage is
         );
     end component;
 
+
+    -- Functions
+    function get_random(urange, bitwidth : positive) return signed;
+
+    -- Procedures
+    procedure random_grid(
+        urange, bitwidth : in positive; 
+        variable s1, s2 : inout positive; 
+        signal input_grid : inout GridType);
+
 end package mypackage;
 
 
-    ---- Functions
-    --subtype ByteVector is unsigned(7 downto 0);
-    --function get_rando (maxint, slvsize : positive) 
-    --    return ByteVector;
 
-    --function random_grid (maxint, slvsize : positive; input_grid : GridType)
-    --    return GridType;
-
-
---package body mypackage is
+package body mypackage is
     
-
-    --function get_rando (maxint, slvsize : positive) 
-    --    return ByteVector is
-    --    variable seed1, seed2 : positive := 1;
-    --    variable x : real;
-    --begin
-    --    uniform(seed1,seed2,x);
-    --    return to_unsigned(integer(floor(x * Real(maxint))), slvsize);
-    --end function get_rando;
-
-
-    --function random_grid (maxint, slvsize : positive; input_grid : GridType)
-    --    return GridType is
-    --    variable return_grid : GridType(input_grid'range(1), input_grid'range(2), input_grid'range(3))(input_grid(1,1,1)'range);
-    --begin
-    --    for i in input_grid'range(1) loop
-    --        for j in input_grid'range(2) loop
-    --            for k in input_grid'range(3) loop
-    --                return_grid(i,j,k) := get_rando(maxint, slvsize);
-    --            end loop;
-    --        end loop;
-    --    end loop;
-    --    return return_grid;
-    --end function random_grid;
+    function get_random(urange, bitwidth : positive) return signed is
+        variable s1, s2 : positive;
+        variable x : real;
+        variable uout : signed(bitwidth - 1 downto 0);
+    begin
+        uniform(s1, s2, x);
+        report "x = " & real'image(x);
+        uout := to_signed(integer(floor((x - 0.5) * real(urange))), bitwidth);
+        report "uout = " & integer'image(to_integer(uout));
+        return uout;
+    end get_random;
 
 
---end package body mypackage;
+    procedure random_grid(
+        urange, bitwidth : in positive; 
+        variable s1, s2 : inout positive;
+        signal input_grid : inout GridType) is
+        variable x : real;
+    begin
+        for i in input_grid'range(1) loop
+            for j in input_grid'range(2) loop
+                for k in input_grid'range(3) loop
+                    uniform(s1, s2, x);
+                    input_grid(i,j,k) <= to_signed(integer(floor((x - 0.5) * real(urange))), bitwidth);
+                end loop;
+            end loop;
+        end loop;
+    end random_grid;
+
+end package body mypackage;
