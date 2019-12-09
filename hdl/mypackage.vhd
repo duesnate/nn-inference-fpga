@@ -11,13 +11,14 @@ package mypackage is
 
     component convolution
         Generic(
-            IMAGE_SIZE      : natural;
-            KERNEL_SIZE     : natural;
-            CHANNEL_COUNT   : natural;
-            GRADIENT_BITS   : natural;
-            STRIDE_STEPS    : natural;
-            ZERO_PADDING    : integer;
-            RELU_ACTIVATION : boolean
+          IMAGE_SIZE      : positive;
+          KERNEL_SIZE     : positive;
+          CHANNELS_IN     : positive;
+          GRADIENT_BITS   : positive;
+          CHANNELS_OUT    : positive;
+          STRIDE_STEPS    : positive;
+          ZERO_PADDING    : natural;
+          RELU_ACTIVATION : boolean
         );
         Port ( 
             Aclk            : in std_logic;
@@ -25,17 +26,17 @@ package mypackage is
             Input_Image     : in GridType(  
                 1 to IMAGE_SIZE,
                 1 to IMAGE_SIZE,
-                1 to CHANNEL_COUNT
+                1 to CHANNELS_IN
                 ) (GRADIENT_BITS - 1 downto 0);
             Kernel_Weights  : in GridType(  
                 1 to KERNEL_SIZE,
                 1 to KERNEL_SIZE,
-                1 to CHANNEL_COUNT
+                1 to CHANNELS_IN * CHANNELS_OUT
                 ) (GRADIENT_BITS - 1 downto 0);
             Output_Feature  : out GridType( 
                 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
                 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-                1 to CHANNEL_COUNT
+                1 to CHANNELS_OUT
                 ) (GRADIENT_BITS - 1 downto 0)
         );
     end component;
@@ -152,20 +153,25 @@ package mypackage is
 
     component interface_conv
         Generic(
-            FOLDING         : boolean := TRUE;
-            IMAGE_SIZE      : natural := 6;
-            KERNEL_SIZE     : natural := 3;
-            CHANNEL_COUNT   : natural := 3;
-            GRADIENT_BITS   : natural := 8;
-            STRIDE_STEPS    : natural := 1;
-            ZERO_PADDING    : integer := 0
+          IMAGE_SIZE      : positive;
+          KERNEL_SIZE     : positive;
+          CHANNELS_IN     : positive;
+          GRADIENT_BITS   : positive;
+          CHANNELS_OUT    : positive;
+          STRIDE_STEPS    : positive;
+          ZERO_PADDING    : natural;
+          RELU_ACTIVATION : boolean
         );
         Port (  
-            Aclk            : in std_logic;
-            Aresetn         : in std_logic;
-            Input_Image     : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*IMAGE_SIZE**2-1 downto 0);
-            Kernel_Weights  : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*KERNEL_SIZE**2-1 downto 0);
-            Feature_Map     : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*((IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1)**2-1 downto 0)
+          Aclk            : in std_logic;
+          Aresetn         : in std_logic;
+          Input_Image     : in std_logic_vector(
+              GRADIENT_BITS * CHANNELS_IN * IMAGE_SIZE**2 - 1 downto 0);
+          Kernel_Weights  : in std_logic_vector(
+              GRADIENT_BITS * CHANNELS_IN * CHANNELS_OUT * KERNEL_SIZE**2 - 1 downto 0);
+          Output_Feature  : out std_logic_vector(
+              GRADIENT_BITS * CHANNELS_OUT 
+              * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2 - 1 downto 0)
         );
     end component;
 
