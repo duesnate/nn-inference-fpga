@@ -51,7 +51,8 @@ end interface_conv;
 
 architecture Behavioral of interface_conv is
 
-    constant FEATURE_SIZE : natural := (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE) / STRIDE_STEPS + 1;
+    constant FEATURE_SIZE : natural 
+        := (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE) / STRIDE_STEPS + 1;
     
     signal Input_Image_i    : GridType(
         1 to IMAGE_SIZE, 
