@@ -34,7 +34,8 @@ entity interface_conv is
         CHANNELS_OUT    : positive;
         STRIDE_STEPS    : positive;
         ZERO_PADDING    : natural;
-        RELU_ACTIVATION : boolean
+        RELU_ACTIVATION : boolean;
+        FOLDED_CONV     : boolean
     );
     Port (  
         Aclk            : in std_logic;
@@ -45,7 +46,8 @@ entity interface_conv is
             GRADIENT_BITS * CHANNELS_IN * CHANNELS_OUT * KERNEL_SIZE**2 - 1 downto 0);
         Output_Feature  : out std_logic_vector(
             GRADIENT_BITS * CHANNELS_OUT 
-            * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2 - 1 downto 0)
+            * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2 - 1 downto 0);
+        conv_complete   : out boolean
     );
 end interface_conv;
 
@@ -103,25 +105,47 @@ begin
         end generate gen_feature_col;
     end generate gen_feature_row;
 
-    convolution_00 : convolution
-        generic map (
-            IMAGE_SIZE      => IMAGE_SIZE,
-            KERNEL_SIZE     => KERNEL_SIZE,
-            CHANNELS_IN     => CHANNELS_IN,
-            GRADIENT_BITS   => GRADIENT_BITS,
-            CHANNELS_OUT    => CHANNELS_OUT,
-            STRIDE_STEPS    => STRIDE_STEPS,
-            ZERO_PADDING    => ZERO_PADDING,
-            RELU_ACTIVATION => RELU_ACTIVATION
-        )
-        port map (
-            Aclk            => Aclk,
-            Aresetn         => Aresetn,
-            Input_Image     => Input_Image_i,
-            Kernel_Weights  => Kernel_Weights_i,
-            Output_Feature  => Output_Feature_i
-        );
-
+    gen_conv_type : if FOLDED_CONV generate
+        folded_conv_v1_00 : folded_conv_v1
+            generic map (
+                IMAGE_SIZE      => IMAGE_SIZE,
+                KERNEL_SIZE     => KERNEL_SIZE,
+                CHANNELS_IN     => CHANNELS_IN,
+                GRADIENT_BITS   => GRADIENT_BITS,
+                CHANNELS_OUT    => CHANNELS_OUT,
+                STRIDE_STEPS    => STRIDE_STEPS,
+                ZERO_PADDING    => ZERO_PADDING,
+                RELU_ACTIVATION => RELU_ACTIVATION
+                )
+            port map (
+                Aclk            => Aclk,
+                Aresetn         => Aresetn,
+                Input_Image     => Input_Image_i,
+                Kernel_Weights  => Kernel_Weights_i,
+                Output_Feature  => Output_Feature_i,
+                conv_complete   => conv_complete
+                );
+    else generate
+        convolution_00 : convolution
+            generic map (
+                IMAGE_SIZE      => IMAGE_SIZE,
+                KERNEL_SIZE     => KERNEL_SIZE,
+                CHANNELS_IN     => CHANNELS_IN,
+                GRADIENT_BITS   => GRADIENT_BITS,
+                CHANNELS_OUT    => CHANNELS_OUT,
+                STRIDE_STEPS    => STRIDE_STEPS,
+                ZERO_PADDING    => ZERO_PADDING,
+                RELU_ACTIVATION => RELU_ACTIVATION
+                )
+            port map (
+                Aclk            => Aclk,
+                Aresetn         => Aresetn,
+                Input_Image     => Input_Image_i,
+                Kernel_Weights  => Kernel_Weights_i,
+                Output_Feature  => Output_Feature_i
+                );
+        conv_complete <= TRUE;
+    end generate gen_conv_type;
 end Behavioral;
 
 

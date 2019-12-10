@@ -102,6 +102,7 @@ begin
           for conv_chn in Output_Feature'range(3) loop
             -- Clear summation
             feature_sum := (others => '0');
+            -- Un-rolled MACC operations
             for macc_row in Kernel_Weights'range(1) loop
               for macc_col in Kernel_Weights'range(2) loop
                 for macc_chn in 1 to CHANNELS_IN loop

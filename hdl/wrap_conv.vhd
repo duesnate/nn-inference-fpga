@@ -27,21 +27,23 @@ use xil_defaultlib.mypackage.ALL;
 
 entity wrap_conv is
     generic (
-        IMAGE_SIZE      : positive := 1;
-        KERNEL_SIZE     : positive := 1;
+        IMAGE_SIZE      : positive := 3;
+        KERNEL_SIZE     : positive := 2;
         CHANNELS_IN     : positive := 1;
-        GRADIENT_BITS   : positive := 1;
-        CHANNELS_OUT    : positive := 1;
+        GRADIENT_BITS   : positive := 4;
+        CHANNELS_OUT    : positive := 2;
         STRIDE_STEPS    : positive := 1;
         ZERO_PADDING    : natural := 0;
-        RELU_ACTIVATION : boolean := TRUE
+        RELU_ACTIVATION : boolean := TRUE;
+        FOLDED_CONV     : boolean := TRUE
         );
     port (
         Aclk            : in std_logic;
         Aresetn         : in std_logic;
         Input_Image     : in std_logic_vector(GRADIENT_BITS * CHANNELS_IN * IMAGE_SIZE**2 - 1 downto 0);
         Kernel_Weights  : in std_logic_vector(GRADIENT_BITS * CHANNELS_IN * CHANNELS_OUT * KERNEL_SIZE**2 - 1 downto 0);
-        Output_Feature  : out std_logic_vector(GRADIENT_BITS * CHANNELS_OUT * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2 - 1 downto 0)
+        Output_Feature  : out std_logic_vector(GRADIENT_BITS * CHANNELS_OUT * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2 - 1 downto 0);
+        conv_complete   : out boolean
         );
 end wrap_conv;
 
@@ -56,13 +58,15 @@ begin
             CHANNELS_OUT    => CHANNELS_OUT,
             STRIDE_STEPS    => STRIDE_STEPS,
             ZERO_PADDING    => ZERO_PADDING,
-            RELU_ACTIVATION => RELU_ACTIVATION
+            RELU_ACTIVATION => RELU_ACTIVATION,
+            FOLDED_CONV     => FOLDED_CONV
             )
         port map (
             Aclk            => Aclk,
             Aresetn         => Aresetn,
             Input_Image     => Input_Image,
             Kernel_Weights  => Kernel_Weights,
-            Output_Feature  => Output_Feature
+            Output_Feature  => Output_Feature,
+            conv_complete   => conv_complete
             );
 end Behavioral;

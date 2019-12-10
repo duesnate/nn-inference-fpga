@@ -27,15 +27,16 @@ use xil_defaultlib.mypackage.ALL;
 
 entity process_conv is
   Generic (
-    IMAGE_SIZE      : natural := 24;    -- I
-    KERNEL_SIZE     : natural := 9;     -- K
-    CHANNEL_COUNT   : natural := 3;     -- Ch
-    GRADIENT_BITS   : natural := 8;     -- B
-    STRIDE_STEPS    : natural := 1;     -- S
-    ZERO_PADDING    : integer := 0;     -- P
-    RELU_ACTIVATION : boolean := TRUE
+    IMAGE_SIZE      : positive;     -- I
+    KERNEL_SIZE     : positive;     -- K
+    CHANNELS_IN     : positive;     -- Ci
+    GRADIENT_BITS   : positive;     -- B
+    CHANNELS_OUT    : positive;     -- Co
+    STRIDE_STEPS    : positive;     -- S
+    ZERO_PADDING    : natural;      -- P
+    RELU_ACTIVATION : boolean
     -- Feature Size: F = (I+2*P-K)/S + 1
-    -- Clock Cycles: C = Ch * K**2 * F**2
+    -- Clock Cycles: C = Ci*Co*F**2
     );
   Port (
     Aclk    : in std_logic;
@@ -43,25 +44,26 @@ entity process_conv is
     Conv_Image : in GridType(
       1 to IMAGE_SIZE,
       1 to IMAGE_SIZE,
-      1 to CHANNEL_COUNT
+      1 to CHANNELS_IN
       ) (GRADIENT_BITS - 1 downto 0);
     Conv_Kernel : in GridType(
       1 to KERNEL_SIZE,
       1 to KERNEL_SIZE,
-      1 to CHANNEL_COUNT
+      1 to CHANNELS_IN * CHANNELS_OUT
       ) (GRADIENT_BITS - 1 downto 0);
     Conv_Feature : out GridType(
       1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
       1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-      1 to CHANNEL_COUNT
+      1 to CHANNELS_OUT
       ) (GRADIENT_BITS - 1 downto 0);
-    mac_hold            : in boolean;
-    mac_row             : in integer range 1 to KERNEL_SIZE;
-    mac_col             : in integer range 1 to KERNEL_SIZE;
+    macc_hold           : in boolean;
+    macc_row            : in integer range 1 to KERNEL_SIZE;
+    macc_col            : in integer range 1 to KERNEL_SIZE;
+    macc_chn            : in integer range 1 to CHANNELS_IN;
     conv_hold           : in boolean;
     conv_row            : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1;
     conv_col            : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1;
-    conv_chn            : in integer range 1 to CHANNEL_COUNT;
+    conv_chn            : in integer range 1 to CHANNELS_OUT;
     transfer_complete   : in boolean;
     conv_complete       : out boolean
     );
@@ -75,7 +77,7 @@ architecture Behavioral of process_conv is
   signal Padded_Image : GridType(
     1 to IMAGE_SIZE + 2 * ZERO_PADDING,
     1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-    1 to CHANNEL_COUNT
+    1 to CHANNELS_IN
     ) (GRADIENT_BITS - 1 downto 0);
 
 begin
@@ -112,11 +114,14 @@ begin
         feature_sum := feature_sum
           -- Add Input Neuron
           + Padded_Image(
-            STRIDE_STEPS * (conv_row - 1) + mac_row, 
-            STRIDE_STEPS * (conv_col - 1) + mac_col, 
-            conv_chn)
+            STRIDE_STEPS * (conv_row - 1) + macc_row, 
+            STRIDE_STEPS * (conv_col - 1) + macc_col, 
+            macc_chn)
           -- Multiplied by Kernel Weight
-          * Conv_Kernel(mac_row, mac_col, conv_chn);
+          * Conv_Kernel(
+            macc_row, 
+            macc_col, 
+            CHANNELS_IN * (conv_chn - 1) + macc_chn);
         -------------------------------
         if not conv_hold then
           -- Apply ReLU activation
@@ -129,7 +134,7 @@ begin
           end if;
           feature_sum := (others => '0');
           -- Check if convolution is complete
-          if mac_hold then
+          if macc_hold then
             conv_complete <= TRUE;
           end if;
         end if;
