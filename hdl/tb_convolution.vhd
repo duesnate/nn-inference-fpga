@@ -14,15 +14,16 @@ end tb_convolution;
 
 architecture Behavioral of tb_convolution is
     
-    constant IMAGE_SIZE         : natural := 3;
-    constant KERNEL_SIZE        : natural := 2;
-    constant CHANNELS_IN        : natural := 3;
-    constant GRADIENT_BITS      : natural := 8;
-    constant CHANNELS_OUT       : natural := 1;
-    constant STRIDE_STEPS       : natural := 1;
-    constant ZERO_PADDING       : integer := 0;
+    constant IMAGE_SIZE         : positive := 32;
+    constant KERNEL_SIZE        : positive := 8;
+    constant CHANNELS_IN        : positive := 3;
+    constant GRADIENT_BITS      : positive := 8;
+    constant CHANNELS_OUT       : positive := 6;
+    constant STRIDE_STEPS       : positive := 2;
+    constant ZERO_PADDING       : natural := 2;
     constant RELU_ACTIVATION    : boolean := FALSE;
 
+    signal RELU_INT : natural;
     signal Aclk            : std_logic := '1';
     signal Aresetn         : std_logic := '0';
     signal Input_Image     : GridType(
@@ -49,9 +50,9 @@ begin
         generic map (
             IMAGE_SIZE      => IMAGE_SIZE,
             KERNEL_SIZE     => KERNEL_SIZE,
-            CHANNELS_IN      => CHANNELS_IN,
+            CHANNELS_IN     => CHANNELS_IN,
             GRADIENT_BITS   => GRADIENT_BITS,
-            CHANNELS_OUT     => CHANNELS_OUT,
+            CHANNELS_OUT    => CHANNELS_OUT,
             STRIDE_STEPS    => STRIDE_STEPS,
             ZERO_PADDING    => ZERO_PADDING,
             RELU_ACTIVATION => RELU_ACTIVATION
@@ -63,6 +64,8 @@ begin
             Kernel_Weights  => Kernel_Weights,
             Output_Feature  => Output_Feature
             );
+
+    RELU_INT <= 1 when RELU_ACTIVATION else 0;
 
     process
         -- Seeds for random number generator
@@ -78,6 +81,16 @@ begin
         file_open(file_status, file_input, "input_data.txt", write_mode);
         file_open(file_status, file_kernel, "kernel_data.txt", write_mode);
         file_open(file_status, file_output, "output_data.txt", write_mode);
+        -- Write convolution parameters to the input data file
+        write(line_buf, integer'image(integer(IMAGE_SIZE))); writeline(file_input, line_buf);
+        write(line_buf, integer'image(integer(KERNEL_SIZE))); writeline(file_input, line_buf);
+        write(line_buf, integer'image(integer(CHANNELS_IN))); writeline(file_input, line_buf);
+        write(line_buf, integer'image(integer(GRADIENT_BITS))); writeline(file_input, line_buf);
+        write(line_buf, integer'image(integer(CHANNELS_OUT))); writeline(file_input, line_buf);
+        write(line_buf, integer'image(integer(STRIDE_STEPS))); writeline(file_input, line_buf);
+        write(line_buf, integer'image(integer(ZERO_PADDING))); writeline(file_input, line_buf);
+        write(line_buf, integer'image(RELU_INT)); writeline(file_input, line_buf);
+        -- Start simulation
         Aresetn <= '0';
         wait for 99.9 ns;
         Aresetn <= '1';
