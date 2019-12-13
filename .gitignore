@@ -9,6 +9,7 @@
 hdl/*.o
 hdl/*.cf
 hdl/data/
+python/data/
 papers/
 figs/
 dmount/

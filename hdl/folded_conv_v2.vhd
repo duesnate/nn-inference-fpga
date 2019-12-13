@@ -209,7 +209,7 @@ begin
   iterator_macc_folding : grid_iterator
     generic map (
       GRID_SIZE       => Conv_Kernel'high(1),
-      CHANNEL_COUNT   => 1
+      CHANNEL_COUNT   => CHANNELS_IN
       )
     port map (
       Aclk    => Aclk,
@@ -222,7 +222,7 @@ begin
   macc_hold <= (conv_complete and (not transfer_complete))
             or ((macc_row = Conv_Kernel'high(1)) 
             and (macc_col = Conv_Kernel'high(2)) 
-            and (macc_chn = Conv_Kernel'high(3))
+            and (macc_chn = CHANNELS_IN)
             and (conv_row = Conv_Feature'high(1)) 
             and (conv_col = Conv_Feature'high(2)) 
             and (conv_chn = Conv_Feature'high(3)));
@@ -244,7 +244,7 @@ begin
   conv_hold <= (not (
     (macc_row = Conv_Kernel'high(1)) and 
     (macc_col = Conv_Kernel'high(2)) and
-    (macc_chn = Conv_Kernel'high(3)))) or conv_complete;
+    (macc_chn = CHANNELS_IN))) or conv_complete;
   --------------------------------------------------
 
   -------------- TX out feature grid ---------------

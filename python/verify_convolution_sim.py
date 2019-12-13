@@ -2,9 +2,9 @@ import torch
 from torch import conv2d
 import math
 
-file_input  = open('/home/nate/UCLA/project/hdl/data/folded_conv_v2/input_data.txt', 'r')
-file_kernel = open('/home/nate/UCLA/project/hdl/data/folded_conv_v2/kernel_data.txt', 'r')
-file_output = open('/home/nate/UCLA/project/hdl/data/folded_conv_v2/output_data.txt', 'r')
+file_input  = open('/home/nate/UCLA/project/figs/sim/conv2/input_data.txt', 'r')
+file_kernel = open('/home/nate/UCLA/project/figs/sim/conv2/kernel_data.txt', 'r')
+file_output = open('/home/nate/UCLA/project/figs/sim/conv2/output_data.txt', 'r')
 
 input_data  = torch.tensor([int(val) for val in file_input.readlines()])
 kernel_data = torch.tensor([int(val) for val in file_kernel.readlines()])
@@ -46,26 +46,25 @@ idx_o = 0
 
 # Cycle through all batches
 for batch in range(conv_batches):
-  # Store input data in multi-dimensional array
+  # Store input data in multi-dimensional array formatted for PyTorch conv2d
   for row in range(image_size):
     for col in range(image_size):
       for chn in range(channels_in):
         input_array[batch, 0, chn, row, col] = input_data[idx_i]
         idx_i += 1
-  # Store kernel weights in multi-dimensional array
+  # Store kernel weights in multi-dimensional array formatted for PyTorch conv2d
   for row in range(kernel_size):
     for col in range(kernel_size):
       for chn_o in range(channels_out):
         for chn_i in range(channels_in):
           kernel_array[batch, chn_o, chn_i, row, col] = kernel_data[idx_k]
           idx_k += 1
-  # Store output data in multi-dimensional array
+  # Store output data in multi-dimensional array formatted for PyTorch conv2d
   for row in range(feature_size):
     for col in range(feature_size):
       for chn in range(channels_out):
         output_array[batch, chn, row, col] = output_data[idx_o]
         idx_o += 1
-  
   # Use PyTorch convolution function to generate expected results
   conv2d_data = conv2d(input_array[batch], kernel_array[batch], padding=zero_padding, stride=stride_steps)
   # Scale down results to designated bit-width integers

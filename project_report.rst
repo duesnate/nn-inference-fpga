@@ -8,7 +8,7 @@
   * Add architectural block design
   * Break apart code and describe design pieces
   * Add simulation results
-  * Add implementation utilization tables for efficiency comparison
+  * Add implementation utilization tables for efficiency comparison and tradeoff discussion
 
 * Update figures
 * Add references
@@ -1159,6 +1159,30 @@ Below is the full implementation of the fully-folded convolution module that inc
       --------------------------------------------------
 
     end Behavioral;
+
+Simulation:
+
+.. figure:: figs/sim/conv2/conv_v2_3-2-3-8-2-1-0-F_stream_input.PNG
+
+   Figure: Input Stream
+
+Verify Results:
+
+.. code-block:: python
+
+  ----------------------------------------
+  Input Size:             3 x 3 x 3
+  Kernel Size:            2 x 2 x 3 x 2
+  Output Feature Size:    2 x 2 x 2
+  Resolution:             8 - bit
+  Stride Steps:           1
+  Zero Padding:           0
+  ReLU Activation:        0
+  Number of Batches:      10
+  ----------------------------------------
+  Check Failed. 1 out of 80 data items do not match.
+  ----------------------------------------
+
 
 
 
