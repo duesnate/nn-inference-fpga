@@ -2,9 +2,9 @@ import torch
 from torch import conv2d
 import math
 
-file_input  = open('/home/nate/UCLA/project/hdl/data/convolution/input_data.txt', 'r')
-file_kernel = open('/home/nate/UCLA/project/hdl/data/convolution/kernel_data.txt', 'r')
-file_output = open('/home/nate/UCLA/project/hdl/data/convolution/output_data.txt', 'r')
+file_input  = open('/home/nate/UCLA/project/hdl/data/folded_conv_v2/input_data.txt', 'r')
+file_kernel = open('/home/nate/UCLA/project/hdl/data/folded_conv_v2/kernel_data.txt', 'r')
+file_output = open('/home/nate/UCLA/project/hdl/data/folded_conv_v2/output_data.txt', 'r')
 
 input_data  = torch.tensor([int(val) for val in file_input.readlines()])
 kernel_data = torch.tensor([int(val) for val in file_kernel.readlines()])
@@ -78,7 +78,7 @@ print('----------------------------------------')
 if num_correct == num_total:
   print('Check Passed. All', int(num_total), 'data items match.')
 else:
-  print('Check Failed.', num_total-num_correct, 'out of', num_total, 'data items do not match.')
+  print('Check Failed.', int(num_total-num_correct), 'out of', int(num_total), 'data items do not match.')
 print('----------------------------------------')
 
 

@@ -194,10 +194,10 @@ begin
       Conv_Kernel         => Conv_Kernel,
       Conv_Feature        => Conv_Feature,
       conv_complete       => conv_complete,
-      macc_hold            => macc_hold,
-      macc_row             => macc_row,
-      macc_col             => macc_col,
-      macc_chn             => macc_chn,
+      macc_hold           => macc_hold,
+      macc_row            => macc_row,
+      macc_col            => macc_col,
+      macc_chn            => macc_chn,
       conv_hold           => conv_hold,
       conv_row            => conv_row,
       conv_col            => conv_col,
@@ -217,14 +217,15 @@ begin
       hold    => macc_hold,
       row     => macc_row,
       column  => macc_col,
-      channel => open
+      channel => macc_chn
       );
   macc_hold <= (conv_complete and (not transfer_complete))
-        or ((macc_row = Conv_Kernel'high(1)) 
-        and (macc_col = Conv_Kernel'high(2)) 
-        and (conv_row = Conv_Feature'high(1)) 
-        and (conv_col = Conv_Feature'high(2)) 
-        and (conv_chn = Conv_Feature'high(3)));
+            or ((macc_row = Conv_Kernel'high(1)) 
+            and (macc_col = Conv_Kernel'high(2)) 
+            and (macc_chn = Conv_Kernel'high(3))
+            and (conv_row = Conv_Feature'high(1)) 
+            and (conv_col = Conv_Feature'high(2)) 
+            and (conv_chn = Conv_Feature'high(3)));
 
   -- Convolution folding iterator state machine
   iterator_conv_folding : grid_iterator
@@ -240,7 +241,10 @@ begin
       column  => conv_col,
       channel => conv_chn
       );
-  conv_hold <= (not ((macc_row = Conv_Kernel'high(1)) and (macc_col = Conv_Kernel'high(2)))) or conv_complete;
+  conv_hold <= (not (
+    (macc_row = Conv_Kernel'high(1)) and 
+    (macc_col = Conv_Kernel'high(2)) and
+    (macc_chn = Conv_Kernel'high(3)))) or conv_complete;
   --------------------------------------------------
 
   -------------- TX out feature grid ---------------
