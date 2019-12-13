@@ -1,3 +1,5 @@
+# verify_convolution_sim.py
+
 import torch
 from torch import conv2d
 import math

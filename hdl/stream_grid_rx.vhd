@@ -17,6 +17,7 @@
 -- Additional Comments:
 -- 
 ----------------------------------------------------------------------------------
+-- stream_grid_rx.vhd
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;

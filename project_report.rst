@@ -1,20 +1,13 @@
 
-**(preliminary draft 2)**
-
 **TODO**: 
 
 * For all design versions:
   
-  * Add architectural block design
   * Break apart code and describe design pieces
-  * Add simulation results
   * Add implementation utilization tables for efficiency comparison and tradeoff discussion
 
-* Update figures
 * Add references
 * Properly generate LaTeX equations
-* Design conv-folding with parallel additions and see how it affects timeing closure
-* Design macc-folding w/o conv-folding and compare results
 
 **************************************
 CNN Inference on FPGAs: Project Report
@@ -49,9 +42,13 @@ In order to understand the interface of a convolutional block used in image clas
 
 The convolution operation consists primarily of the multiply-accumulate (MACC) operation. The trained weights of a CNN are realized using what is called a "kernel" which is just a square grid of trained weight values that is smaller in dimension than the input image. It is important to note that when working with 3-channel RGB images, a unique kernel grid must exist for each color-channel resulting in a 3-dimensional MxNx3 shaped kernel. This grid of weights functions as a sliding filter that moves over the image where in each iteration it is convolved with an equally sized sub-section of the input image. For each iterative location of the kernel, the image grid and kernel grid are multiplied element-wise. The resulting product from each pixel-weight multiplication is then summed together respective of their color-channel to produce a scalar output. In a model for RGB images there will be three scalar valued neurons produced that correspond to each iterative location of the applied kernel. For the next iteration the kernel is shifted over the image by one pixel such that it covers a slightly different portion of the input. This process is repeated until all rows and columns of the image's grid-space have been convolved. The scalar outputs are then organized respectively to form a new grid of values called the "feature map". This feature map is then passed forward to the next operation in the network. Described above is the most basic form of the convolution operation. There are additional features that are optional and can typically be enabled and adjusted by modifying parameters. In some situations it may be desirable to apply zero-padding to the convolution operation by surrounding the input image borders with zero-valued pixels. Applying a zero-padding of n pixel will increase the input image size by 2n in both the row and column dimension. For example, a 5x5x3 grid becomes 7x7x3 grid after applying zero-padding of one. Another common parameter used in convolution operations is stride length which by default will be one. Stride length controls the number of pixels in which the kernel will shift over the image for each iteration. Stride length can be increased to effectively downsample and thus reduce the size of the output feature map.
 
+.. figure:: figs/hdl_bd_macc.png
+
+   Figure: Block design for the MACC operation.
+
 The aim of a convolution layer is to extract learned shapes and patterns frome the input images as features. To accomplish this, kernel weight values are learned using a set of training data consisting of pre-classified images. Optimal weights that will effectively extract the necessary features are adjusted through iterative back-propogation. This is called supervised learning. A convolution layer typically reduces the row and column dimensions while increasing the depth or channel count. This allows for many features of the same input region to be learned. A decrease in pixel resolution is effective in order to prevent over-fitting since each feature does not require the entire resolution of the input. To increase the output's depth - and thereby increase the number of learned features - we use additional sets of kernel weights that are trained and applied to the inputs. Below is a visualization of the convolution operation with a 5x5 input and one zero-padding. It shows two sets of 3x3x3 kernel weights convolve over the input with a stride of two. The output generated is a 3x3x6 feature map.
 
-.. figure:: figs/convolution.png
+.. figure:: figs/convolution_visualize.png
 
    Figure: Visualized convolution operation. [Input Image: 5x5x3 (RGB); Kernel Weights: 3x3x6; Zero-padding = 1; Stride = 2; Output Feature: 3x3x6]
 
@@ -64,6 +61,10 @@ Non-Linear Activation Block
 ---------------------------
 
 The non-linear block implements an activation function for the primary purpose of introducing non-linearity to the CNN model. If a NN is not capable of utilizing non-linear properties then it will only be successful at modeling against a very basic set of data. The activation function is what unlocks the ability to train against complex object attributes we observe in the world around us. One of the most effective and also perhaps the most simple of the available activation functions is the rectified linear unit, more simply referred to as the ReLU operator. There are a few adaptions of the ReLU operator being used today, but the most basic form of ReLU simply converts all negative input values to zeros while leaving postive values unchanged.
+
+.. figure:: figs/hdl_bd_relu.png
+
+   Figure: Block design for ReLU operations.
 
 
 Pooling Block
@@ -111,25 +112,18 @@ Streaming Accelerator Architectures
 
 Streaming accelerator architectures are characterized as having each of its layers individually instantiated in logic with parameters optimized for a specific model. Each layer will have data streaming out to the following operation while data from the preceding stage will flow in. This happens for all layers concurrently such that utilization of the implemented resources is maximized. An advantage of the streaming approach is that feature data between operations does not require the use of off-chip memory access. This alleviates memory bandwidth while improving the achievable classification latency. 
 
-.. figure:: figs/streaming_architecture.png
+.. figure:: figs/streaming_architecture2.png
 
-   Figure: Streaming Architecture Example
+  Figure: Streaming Architecture Example
 
 Single Engine Architectures
 ---------------------------
 
 Single engine architectures, as the name implies, take the form of a single powerful accelerated computation engine capable of executing each layer of the CNN model sequentially. This type of implementation can take on many variations but typically requires a control unit or finite-state machine (FSM) that moderates data-flow and schedules sequences of operation. The single engine will consist of an array of processing elements that support SIMD matrix operations for completing convolutions, non-linear functions, pooling and other required operations all in a single engine. One huge advantage of this approach is the potential for a single FPGA design to operate on many different model configurations and data sets without the need for re-programming. This allows for increased flexibility but at the cost of reduced resource utilization efficiency as well as consistency of performance results. Although simple models could get by with only on-chip memory (OCM) use, complex models will require significantly more access to off-chip memory than a comparable streaming architecture. 
 
-.. figure:: figs/single_engine_architecture.png
+.. figure:: figs/single_engine_architecture2.png
 
    Figure: Single-Engine Architecture Example
-
-
-* Static vs. dynamic scheduling
-* ...
-
-
-
 
 
 FPGA vs. GPU
@@ -264,13 +258,21 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
   
   \[ o = \frac{i + 2p - k}{s} + 1 \]
 
+.. figure:: figs/hdl_bd_convolution.png
+
+   Figure: Block design of the fully-unrolled convolution module.
+
+
+
 .. figure:: figs/vivado_ip_convolution.png
 
    Figure: Convolution block drop in IP for Vivado block designs.
 
-**HDL: convolution.vhd**
+**HDL - Fully-Unrolled Convolution Module**
 
 .. code-block:: VHDL
+
+  -- convolution.vhd
 
   library IEEE;
   use IEEE.STD_LOGIC_1164.ALL;
@@ -278,16 +280,17 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
   use IEEE.math_real.all;
   library xil_defaultlib;
   use xil_defaultlib.mypackage.ALL;
-
+  
   entity convolution is
     Generic(
-      IMAGE_SIZE      : natural := 6;
-      KERNEL_SIZE     : natural := 3;
-      CHANNEL_COUNT   : natural := 3;
-      GRADIENT_BITS   : natural := 8;
-      STRIDE_STEPS    : natural := 1;
-      ZERO_PADDING    : integer := 0;
-      RELU_ACTIVATION : boolean := TRUE
+      IMAGE_SIZE      : positive;
+      KERNEL_SIZE     : positive;
+      CHANNELS_IN     : positive;
+      GRADIENT_BITS   : positive;
+      CHANNELS_OUT    : positive;
+      STRIDE_STEPS    : positive;
+      ZERO_PADDING    : natural;
+      RELU_ACTIVATION : boolean
     );
     Port (  
       Aclk            : in std_logic;
@@ -295,34 +298,35 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
       Input_Image     : in GridType(  
         1 to IMAGE_SIZE,
         1 to IMAGE_SIZE,
-        1 to CHANNEL_COUNT
+        1 to CHANNELS_IN
         ) (GRADIENT_BITS - 1 downto 0);
       Kernel_Weights  : in GridType(  
         1 to KERNEL_SIZE,
         1 to KERNEL_SIZE,
-        1 to CHANNEL_COUNT
+        1 to CHANNELS_IN * CHANNELS_OUT
         ) (GRADIENT_BITS - 1 downto 0);
       Output_Feature  : out GridType( 
         1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
         1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-        1 to CHANNEL_COUNT
+        1 to CHANNELS_OUT
         ) (GRADIENT_BITS - 1 downto 0)
     );
   end convolution;
-
+  
   architecture Behavioral of convolution is
-
+  
     -- Prevents overflow during summation (subtract one because signed)
     constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
-
+  
+    -- Grid after applying zero-padding
     signal Padded_Image : GridType(
       1 to IMAGE_SIZE + 2 * ZERO_PADDING,
       1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-      1 to CHANNEL_COUNT
+      1 to CHANNELS_IN
       ) (GRADIENT_BITS - 1 downto 0);
-
+  
   begin
-
+  
     ----------- Generate zero-padded image -----------
     gen_row : for row in Padded_Image'range(1) generate
       gen_col : for col in Padded_Image'range(2) generate
@@ -332,7 +336,7 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
                 (col > ZERO_PADDING) and 
                 (row <= Padded_Image'high(1) - ZERO_PADDING) and 
                 (col <= Padded_Image'high(2) - ZERO_PADDING) generate
-            Padded_Image(row, col, chn) <= Conv_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
+            Padded_Image(row, col, chn) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
           else generate
             Padded_Image(row, col, chn) <= (others => '0');
           end generate gen_zp;
@@ -340,8 +344,9 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
       end generate gen_col;
     end generate gen_row;
     --------------------------------------------------
-
-    process(Aclk, Aresetn)
+  
+    --------------- Convolution Process --------------
+    convolution_process : process(Aclk, Aresetn)
       variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
     begin
       if Aresetn = '0' then
@@ -352,18 +357,24 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
             for conv_chn in Output_Feature'range(3) loop
               -- Clear summation
               feature_sum := (others => '0');
-              for mac_row in Kernel_Weights'range(1) loop
-                for mac_col in Kernel_Weights'range(2) loop
-                  ----- Multiply Accumulate -----
-                  feature_sum := feature_sum
-                    -- Add Input Neuron
-                    + Padded_Image(
-                      STRIDE_STEPS * (conv_row - 1) + mac_row, 
-                      STRIDE_STEPS * (conv_col - 1) + mac_col, 
-                      conv_chn)
-                    -- Multiplied by Kernel Weight
-                    * Conv_Kernel(mac_row, mac_col, conv_chn);
-                  -------------------------------
+              -- Un-rolled MACC operations
+              for macc_row in Kernel_Weights'range(1) loop
+                for macc_col in Kernel_Weights'range(2) loop
+                  for macc_chn in 1 to CHANNELS_IN loop
+                    ----- Multiply Accumulate -----
+                    feature_sum := feature_sum
+                      -- Add Input Neuron
+                      + Padded_Image(
+                        STRIDE_STEPS * (conv_row - 1) + macc_row, 
+                        STRIDE_STEPS * (conv_col - 1) + macc_col, 
+                        macc_chn)
+                      -- Multiplied by Kernel Weight
+                      * Kernel_Weights(
+                        macc_row, 
+                        macc_col, 
+                        CHANNELS_IN * (conv_chn - 1) + macc_chn);
+                    -------------------------------
+                  end loop;
                 end loop;
               end loop;
               -- Apply ReLU activation
@@ -379,8 +390,10 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
         end loop;
       end if;
     end process;
-
+    --------------------------------------------------
+    
   end Behavioral;
+
 
 .. figure:: figs/convolution_elaborated_00-1.png
 
@@ -446,200 +459,233 @@ Folded Convolution
 
 It quickly becomes apparent that a fully-unrolled convolution block is not a sustainable method of implementing large CNN models. This is due to high resource usage and difficulty with timing closure. In order to alleviate resource utilization, folding of MACC operations over multiple clocks allows logic to be reused iteratively over time. Unfortunately, VHDL does not provide a straightforward method for extending iterative loops over multiple clock cycles. Thus an iterator module was developed which can be instantiated for any scenario that requires iterating through multi-dimensional "GridType" arrays over multiple clock cycles. 
 
-**HDL: grid_iterator.vhd**
+.. figure:: figs/hdl_bd_grid_iterator.png
+
+   Figure: Simplified diagram of the grid iterator module.
+
+**HDL - Grid Iterator Module**
 
 .. code-block:: VHDL
 
-    library IEEE;
-    use IEEE.STD_LOGIC_1164.ALL;
-    use IEEE.NUMERIC_STD.ALL;
-    use IEEE.math_real.all;
-    library xil_defaultlib;
-    use xil_defaultlib.mypackage.ALL;
-
-    entity grid_iterator is
+  -- grid_iterator.vhd
+  
+  library IEEE;
+  use IEEE.STD_LOGIC_1164.ALL;
+  use IEEE.NUMERIC_STD.ALL;
+  use IEEE.math_real.all;
+  library xil_defaultlib;
+  use xil_defaultlib.mypackage.ALL;
+  
+  entity grid_iterator is
       Generic(
-        GRID_SIZE    : natural := 8;
-        CHANNEL_COUNT   : natural := 3
+          GRID_SIZE    : natural := 8;
+          CHANNEL_COUNT   : natural := 3
       );
       Port (
-        Aclk    : in std_logic;
-        Aresetn : in std_logic;
-        hold    : in boolean;
-        row     : out integer range 1 to GRID_SIZE;
-        column  : out integer range 1 to GRID_SIZE;
-        channel : out integer range 1 to CHANNEL_COUNT
+          Aclk    : in std_logic;
+          Aresetn : in std_logic;
+          hold    : in boolean;
+          row     : out integer range 1 to GRID_SIZE;
+          column  : out integer range 1 to GRID_SIZE;
+          channel : out integer range 1 to CHANNEL_COUNT
       );
-    end grid_iterator;
-
-    architecture Behavioral of grid_iterator is
-
-    begin
-
+  end grid_iterator;
+  
+  architecture Behavioral of grid_iterator is
+  
+  begin
+  
       process(Aclk, Aresetn)
       begin
-        if Aresetn = '0' then
-          row <= 1;
-          column <= 1;
-          channel <= 1;
-        elsif rising_edge(Aclk) then
-          -- Pause iterations while hold is asserted
-          if not hold then 
-            if channel >= CHANNEL_COUNT then
-              if column >= GRID_SIZE then
-                if row >= GRID_SIZE then
-                  row <= 1;
-                else
-                  row <= row + 1;
-                end if;
-                column <= 1;
-              else
-                column <= column + 1;
-              end if;
+          if Aresetn = '0' then
+              row <= 1;
+              column <= 1;
               channel <= 1;
-            else
-              channel <= channel + 1;
-            end if;
+          elsif rising_edge(Aclk) then
+              -- Pause iterations while hold is asserted
+              if not hold then 
+                  if channel >= CHANNEL_COUNT then
+                      if column >= GRID_SIZE then
+                          if row >= GRID_SIZE then
+                              row <= 1;
+                          else
+                              row <= row + 1;
+                          end if;
+                          column <= 1;
+                      else
+                          column <= column + 1;
+                      end if;
+                      channel <= 1;
+                  else
+                      channel <= channel + 1;
+                  end if;
+              end if;
           end if;
-        end if;
       end process;
-
-    end Behavioral;
+  
+  end Behavioral;
 
 The design quickly becomes much more complex when facilitating folding operations and organizing data-flow using methods that promote efficiency of resource usage. Additional control logic and signals were required for coordination between the convolution process and the input/output data streams. Two folded designs were developed and tested to observe how folding of MACC operations would affect FPGA utilization. The first design applied folding such that each kernel step required one clock cycle. This extended the convolution operation over a number of clocks equal to the number of neurons in the feature-map output. For example, an 8x8 3-channel input with a 4x4 kernel would require *3\*(8-4+1)^2 = 75* clocks. In this design, a 4x4 kernel will instantiate logic for 16 individual multipliers and 15 adders in order to process the MACC operation in a single clock. By time-multiplexing numerous MACC operations on a single instance, this design provided great improvements in resource usage. 
 
-**HDL: folded_conv_v1.vhd**
+.. figure:: figs/hdl_bd_fconv_v1.png
+
+   Figure: Convolution module with folded MACC operations.
+
+**HDL - Partially-Folded Convolution Module**
 
 .. code-block:: VHDL
 
-    library IEEE;
-    use IEEE.STD_LOGIC_1164.ALL;
-    use IEEE.NUMERIC_STD.ALL;
-    use IEEE.math_real.all;
-    library xil_defaultlib;
-    use xil_defaultlib.mypackage.ALL;
-
-    entity folded_conv_v1 is
-      Generic(
-        IMAGE_SIZE      : natural := 6;
-        KERNEL_SIZE     : natural := 4;
-        CHANNEL_COUNT   : natural := 1;
-        GRADIENT_BITS   : natural := 8;
-        STRIDE_STEPS    : natural := 1;
-        ZERO_PADDING    : integer := 0;
-        RELU_ACTIVATION : boolean := TRUE
-      );
-      Port (  
-        Aclk            : in std_logic;
-        Aresetn         : in std_logic;
-        Input_Image     : in GridType(  
-          1 to IMAGE_SIZE,
-          1 to IMAGE_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        Input_Kernel    : in GridType(  
-          1 to KERNEL_SIZE,
-          1 to KERNEL_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        Output_Feature  : out GridType( 
-          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        conv_complete : out boolean
-      );
-    end folded_conv_v1;
-
-    architecture Behavioral of folded_conv_v1 is
-
-      -- Prevents overflow during summation (subtract one because signed)
-      constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
-
-      signal Padded_Image : GridType(
-        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-        1 to CHANNEL_COUNT
+  -- folded_conv_v1.vhd
+  
+  library IEEE;
+  use IEEE.STD_LOGIC_1164.ALL;
+  use IEEE.NUMERIC_STD.ALL;
+  use IEEE.math_real.all;
+  library xil_defaultlib;
+  use xil_defaultlib.mypackage.ALL;
+  
+  entity folded_conv_v1 is
+    Generic(
+      IMAGE_SIZE      : positive;
+      KERNEL_SIZE     : positive;
+      CHANNELS_IN     : positive;
+      GRADIENT_BITS   : positive;
+      CHANNELS_OUT    : positive;
+      STRIDE_STEPS    : positive;
+      ZERO_PADDING    : natural;
+      RELU_ACTIVATION : boolean
+    );
+    Port (  
+      Aclk            : in std_logic;
+      Aresetn         : in std_logic;
+      Input_Image     : in GridType(  
+        1 to IMAGE_SIZE,
+        1 to IMAGE_SIZE,
+        1 to CHANNELS_IN
         ) (GRADIENT_BITS - 1 downto 0);
-
-      -- Convolution iterator signals
-      signal conv_row  : integer range Output_Feature'range(1);
-      signal conv_col  : integer range Output_Feature'range(2);
-      signal conv_chn  : integer range Output_Feature'range(3);
-
+      Kernel_Weights    : in GridType(  
+        1 to KERNEL_SIZE,
+        1 to KERNEL_SIZE,
+        1 to CHANNELS_IN * CHANNELS_OUT
+        ) (GRADIENT_BITS - 1 downto 0);
+      Output_Feature  : out GridType( 
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+        1 to CHANNELS_OUT
+        ) (GRADIENT_BITS - 1 downto 0);
+      conv_complete   : out boolean
+    );
+  end folded_conv_v1;
+  
+  architecture Behavioral of folded_conv_v1 is
+  
+    -- Prevents overflow during summation (subtract one because signed)
+    constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
+  
+    -- Grid after applying zero-padding
+    signal Padded_Image : GridType(
+      1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+      1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+      1 to CHANNELS_IN
+      ) (GRADIENT_BITS - 1 downto 0);
+  
+    -- Convolution iterator signals
+    signal conv_row  : integer range Output_Feature'range(1);
+    signal conv_col  : integer range Output_Feature'range(2);
+    signal conv_chn  : integer range Output_Feature'range(3);
+  
+    signal conv_edge : boolean;
+  
+  begin
+  
+    ----------- Generate zero-padded image -----------
+    gen_row : for row in Padded_Image'range(1) generate
+      gen_col : for col in Padded_Image'range(2) generate
+        gen_chn : for chn in Padded_Image'range(3) generate
+          -- Fill with input image when out of padding range
+          gen_zp : if (row > ZERO_PADDING) and 
+                (col > ZERO_PADDING) and 
+                (row <= Padded_Image'high(1) - ZERO_PADDING) and 
+                (col <= Padded_Image'high(2) - ZERO_PADDING) generate
+            Padded_Image(row, col, chn) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
+          else generate
+            Padded_Image(row, col, chn) <= (others => '0');
+          end generate gen_zp;
+        end generate gen_chn;
+      end generate gen_col;
+    end generate gen_row;
+    --------------------------------------------------
+  
+    --------------- Compute convolution --------------
+    process(Aclk, Aresetn)
+      variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
     begin
-
-      ----------- Generate zero-padded image -----------
-      gen_row : for row in Padded_Image'range(1) generate
-        gen_col : for col in Padded_Image'range(2) generate
-          gen_chn : for chn in Padded_Image'range(3) generate
-            -- Fill with input image when out of padding range
-            gen_zp : if (row > ZERO_PADDING) and 
-                  (col > ZERO_PADDING) and 
-                  (row <= Padded_Image'high(1) - ZERO_PADDING) and 
-                  (col <= Padded_Image'high(2) - ZERO_PADDING) generate
-              Padded_Image(row, col, chn) <= Input_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
-            else generate
-              Padded_Image(row, col, chn) <= (others => '0');
-            end generate gen_zp;
-          end generate gen_chn;
-        end generate gen_col;
-      end generate gen_row;
-      --------------------------------------------------
-
-      --------------- Compute convolution --------------
-      process(Aclk, Aresetn)
-        variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
-      begin
-        if Aresetn = '0' then
-          Output_Feature <= (others => (others => (others => (others => '0'))));
-        elsif rising_edge(Aclk) then
-          -- Clear summation
-          feature_sum := (others => '0');
-          -- Un-rolled MACC operations
-          for mac_row in Input_Kernel'range(1) loop
-            for mac_col in Input_Kernel'range(2) loop
+      if Aresetn = '0' then
+        Output_Feature <= (others => (others => (others => (others => '0'))));
+      elsif rising_edge(Aclk) then
+        -- Clear summation
+        feature_sum := (others => '0');
+        -- Un-rolled MACC operations
+        for macc_row in Kernel_Weights'range(1) loop
+          for macc_col in Kernel_Weights'range(2) loop
+            for macc_chn in 1 to CHANNELS_IN loop
               ----- Multiply Accumulate -----
               feature_sum := feature_sum
                 -- Add Input Neuron
                 + Padded_Image(
-                  STRIDE_STEPS * (conv_row - 1) + mac_row, 
-                  STRIDE_STEPS * (conv_col - 1) + mac_col, 
-                  conv_chn)
+                  STRIDE_STEPS * (conv_row - 1) + macc_row, 
+                  STRIDE_STEPS * (conv_col - 1) + macc_col, 
+                  macc_chn)
                 -- Multiplied by Kernel Weight
-                * Input_Kernel(mac_row, mac_col, conv_chn);
+                * Kernel_Weights(
+                  macc_row, 
+                  macc_col, 
+                  CHANNELS_IN * (conv_chn - 1) + macc_chn);
               -------------------------------
             end loop;
           end loop;
-          -- Apply ReLU activation
-          if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
-            Output_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
-          else
-            -- Scale down Result
-            Output_Feature(conv_row, conv_col, conv_chn) 
-              <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
-          end if;
+        end loop;
+        -- Apply ReLU activation
+        if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
+          Output_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
+        else
+          -- Scale down Result
+          Output_Feature(conv_row, conv_col, conv_chn) 
+            <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
         end if;
-      end process;
+      end if;
+    end process;
+  
+    -- Convolution folding iterator state machine
+    iterator_conv_folding : grid_iterator
+      generic map (
+        GRID_SIZE       => Output_Feature'high(1),
+        CHANNEL_COUNT   => Output_Feature'high(3)
+        )
+      port map (
+        Aclk    => Aclk,
+        Aresetn => Aresetn,
+        hold    => conv_complete,
+        row     => conv_row,
+        column  => conv_col,
+        channel => conv_chn
+        );
+    conv_complete <= not conv_edge and (
+                    (conv_row = Output_Feature'high(1)) 
+                and (conv_col = Output_Feature'high(2))
+                and (conv_chn = Output_Feature'high(3)));
+    process(Aclk, Aresetn)
+    begin
+      if Aresetn = '0' then
+        conv_edge <= FALSE;
+      elsif rising_edge(Aclk) then
+        conv_edge <= conv_complete;
+      end if;
+    end process;
+    --------------------------------------------------
+  
+  end Behavioral;
 
-      -- Convolution folding iterator state machine
-      iterator_conv_folding : grid_iterator
-        generic map (
-          GRID_SIZE       => Output_Feature'high(1),
-          CHANNEL_COUNT   => Output_Feature'high(3)
-          )
-        port map (
-          Aclk    => Aclk,
-          Aresetn => Aresetn,
-          hold    => conv_complete,
-          row     => conv_row,
-          column  => conv_col,
-          channel => conv_chn
-          );
-      conv_complete <= (conv_row = Output_Feature'high(1)) and (conv_col = Output_Feature'high(2));
-      --------------------------------------------------
-
-    end Behavioral;
 
 Testbench Simulation:
 
@@ -685,561 +731,600 @@ Large kernels on this design will continue to prove difficult for resource const
 
 The next design applies additional folding of the convolution block such that a single MACC will now sequentially process the entire convolution using just one multiply and one addition. The number of clocks required for this implementation will be equal to the number of neuron outputs multiplied by the number of weights in the kernel. The same 8x8 3-channel input with a 4x4 kernel will now require *3\*4^2\*(8-4+1)^2 = 1200* clock cycles to complete. Although this will provide additional resource savings, it will be at the cost of much greater latency and throughput. Additional resources are required to facilitate coordination of iterative operation sequences and in-turn drives up design complexity. The high degree of folding applied using iterator modules and data-flow logic in this design demonstrated poor resource utilization trade-offs given the massive increase in throughput and latency. Much of the logic resources saved by the reduction in MACC units was consumed by the additional iterator control logic required to orchestrate the folding process. This implementation method can certainly be changed, optimized, and improved upon in order to achieve greater efficiency trade-offs. The effort to make these improvements is difficult to justify though because a "fully-folded" sequential architecture will in a way defeat the purpose of using FPGAs to begin with. Regardless, this design exercise was beneficial for both the analysis and experience provided.
 
-
 This design incorporates an input and output data streaming architecture for the input image and kernel weights and output feature map using the following streaming modules.
 
-**HDL: stream_grid_rx.vhd**
+**HDL - Grid RX Stream Module**
+
+.. figure:: figs/hdl_bd_grid_rx_stream.png
+
+   Figure: Diagram of grid receive stream interface.
 
 .. code-block:: VHDL
 
-    library IEEE;
-    use IEEE.STD_LOGIC_1164.ALL;
-    use IEEE.NUMERIC_STD.ALL;
-    use IEEE.math_real.all;
-    library xil_defaultlib;
-    use xil_defaultlib.mypackage.ALL;
-
-    entity stream_grid_rx is
-      Generic (
-        GRID_SIZE       : natural := 6;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8
-      );
-      Port (
-        Aclk     : in std_logic;
-        Aresetn  : in std_logic;
-        -- AXIS
-        Stream_Data     : in std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Stream_Valid    : in boolean;
-        Stream_Ready    : out boolean;
-        -- Data
-        Grid_Data : out GridType(
-          1 to GRID_SIZE,
-          1 to GRID_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        -- Control
-        Transfer_Complete   : in boolean;
-        Stream_Complete     : out boolean
-      );
-    end stream_grid_rx;
-
-    architecture Behavioral of stream_grid_rx is
-
-      signal grid_hold : boolean;
-      signal grid_row : integer range Grid_Data'range(1);
-      signal grid_col : integer range Grid_Data'range(2);
-      signal grid_chn : integer range Grid_Data'range(3);
-
-    begin
-
-      process(Aclk, Aresetn)
-      begin
-        if Aresetn = '0' then
-          Stream_Complete <= FALSE;
-          Grid_Data <= (others => (others => (others => (others => '0'))));
-        elsif rising_edge(Aclk) then
-          -------------------------
-          if not grid_hold then
-            Grid_Data(grid_row, grid_col, grid_chn) <= signed(Stream_Data);
-          end if;
-          -------------------------
-          if (not Stream_Complete) and (grid_row = Grid_Data'high(1)) 
-                                   and (grid_col = Grid_Data'high(2)) 
-                                   and (grid_chn = Grid_Data'high(3)) then
-            Stream_Complete <= TRUE;
-          elsif Transfer_Complete then
-            Stream_Complete <= FALSE;
-          end if;
-          -------------------------
-        end if;
-      end process;
-
-      iterator_stream_grid : grid_iterator
-        generic map (
-          GRID_SIZE       => Grid_Data'high(1),
-          CHANNEL_COUNT   => Grid_Data'high(3)
-          )
-        port map (
-          Aclk    => Aclk,
-          Aresetn => Aresetn,
-          hold    => grid_hold,
-          row     => grid_row,
-          column  => grid_col,
-          channel => grid_chn
-          );
-      
-      Stream_Ready <= Transfer_Complete or (not Stream_Complete);
-      grid_hold    <= (not Stream_Valid) or (not Stream_Ready);
-
-    end Behavioral;
-
-**HDL: stream_grid_tx.vhd**
-
-.. code-block:: VHDL
-
-    library IEEE;
-    use IEEE.STD_LOGIC_1164.ALL;
-    use IEEE.NUMERIC_STD.ALL;
-    use IEEE.math_real.all;
-    library xil_defaultlib;
-    use xil_defaultlib.mypackage.ALL;
-
-    entity stream_grid_tx is
-      Generic (
-        GRID_SIZE       : natural := 6;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8
-      );
-      Port (
-        Aclk     : in std_logic;
-        Aresetn  : in std_logic;
-        -- AXIS
-        Stream_Data     : out std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Stream_Valid    : out boolean;
-        Stream_Ready    : in boolean;
-        -- Data
-        Grid_Data : in GridType(
-          1 to GRID_SIZE,
-          1 to GRID_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        -- Control
-        Transfer_Complete   : in boolean;
-        Stream_Complete     : out boolean
-      );
-    end stream_grid_tx;
-
-    architecture Behavioral of stream_grid_tx is
-
-      signal grid_hold : boolean;
-      signal grid_row : integer range Grid_Data'range(1);
-      signal grid_col : integer range Grid_Data'range(2);
-      signal grid_chn : integer range Grid_Data'range(3);
-
-    begin
-
-      process(Aclk, Aresetn)
-      begin
-        if Aresetn = '0' then
-          Stream_Complete <= FALSE;
-          Stream_Data <= (others => '0');
-        elsif rising_edge(Aclk) then
-          -------------------------
-          if not grid_hold then
-            Stream_Data <= std_logic_vector(Grid_Data(grid_row, grid_col, grid_chn));
-          end if;
-          -------------------------
-          if (not Stream_Complete) and (grid_row = Grid_Data'high(1)) 
-                                   and (grid_col = Grid_Data'high(2)) 
-                                   and (grid_chn = Grid_Data'high(3)) then
-            Stream_Complete <= TRUE;
-          elsif Transfer_Complete then
-            Stream_Complete <= FALSE;
-          end if;
-          -------------------------
-        end if;
-      end process;
-
-      iterator_stream_grid : grid_iterator
-        generic map (
-          GRID_SIZE       => Grid_Data'high(1),
-          CHANNEL_COUNT   => Grid_Data'high(3)
-          )
-        port map (
-          Aclk    => Aclk,
-          Aresetn => Aresetn,
-          hold    => grid_hold,
-          row     => grid_row,
-          column  => grid_col,
-          channel => grid_chn
-          );
-
-      Stream_Valid <= Transfer_Complete or (not Stream_Complete);
-      grid_hold    <= (not Stream_Valid) or (not Stream_Ready);
-
-    end Behavioral;
-
-An additional module was created for the convolution operation to allow for independent evaluation of implemented MACC resource utilization. Notice how in this version of the convolution operation there are no **for-loop** statements to apply loop unrolling.
-
-**HDL: process_conv.vhd**
-
-.. code-block:: VHDL
-
-    library IEEE;
-    use IEEE.STD_LOGIC_1164.ALL;
-    use IEEE.NUMERIC_STD.ALL;
-    use IEEE.math_real.all;
-    library xil_defaultlib;
-    use xil_defaultlib.mypackage.ALL;
-
-    entity process_conv is
-      Generic (
-        IMAGE_SIZE      : natural := 24;    -- I
-        KERNEL_SIZE     : natural := 9;     -- K
-        CHANNEL_COUNT   : natural := 3;     -- Ch
-        GRADIENT_BITS   : natural := 8;     -- B
-        STRIDE_STEPS    : natural := 1;     -- S
-        ZERO_PADDING    : integer := 0;     -- P
-        RELU_ACTIVATION : boolean := TRUE
-        -- Feature Size: F = (I+2*P-K)/S + 1
-        -- Clock Cycles: C = Ch * K**2 * F**2
-        );
-      Port (
-        Aclk    : in std_logic;
-        Aresetn : in std_logic;
-        Conv_Image : in GridType(
-          1 to IMAGE_SIZE,
-          1 to IMAGE_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        Conv_Kernel : in GridType(
-          1 to KERNEL_SIZE,
-          1 to KERNEL_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        Conv_Feature : out GridType(
-          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        mac_hold          : in boolean;
-        mac_row           : in integer range 1 to KERNEL_SIZE;
-        mac_col           : in integer range 1 to KERNEL_SIZE;
-        conv_hold         : in boolean;
-        conv_row          : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) 
-                                                 / STRIDE_STEPS + 1;
-        conv_col          : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) 
-                                                 / STRIDE_STEPS + 1;
-        conv_chn          : in integer range 1 to CHANNEL_COUNT;
-        transfer_complete : in boolean;
-        conv_complete     : out boolean
-        );
-    end process_conv;
-
-    architecture Behavioral of process_conv is
-
-      -- Prevents overflow during summation (subtract one because signed)
-      constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
-
-      signal Padded_Image : GridType(
-        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
-        1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+  -- stream_grid_rx.vhd
+  
+  library IEEE;
+  use IEEE.STD_LOGIC_1164.ALL;
+  use IEEE.NUMERIC_STD.ALL;
+  use IEEE.math_real.all;
+  library xil_defaultlib;
+  use xil_defaultlib.mypackage.ALL;
+  
+  entity stream_grid_rx is
+    Generic (
+      GRID_SIZE       : natural := 6;
+      CHANNEL_COUNT   : natural := 3;
+      GRADIENT_BITS   : natural := 8
+    );
+    Port (
+      Aclk     : in std_logic;
+      Aresetn  : in std_logic;
+      -- AXIS
+      Stream_Data     : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+      Stream_Valid    : in boolean;
+      Stream_Ready    : out boolean;
+      -- Data
+      Grid_Data : out GridType(
+        1 to GRID_SIZE,
+        1 to GRID_SIZE,
         1 to CHANNEL_COUNT
         ) (GRADIENT_BITS - 1 downto 0);
-
+      -- Control
+      Transfer_Complete   : in boolean;
+      Stream_Complete     : out boolean
+    );
+  end stream_grid_rx;
+  
+  architecture Behavioral of stream_grid_rx is
+  
+    signal grid_hold : boolean;
+    signal grid_row : integer range Grid_Data'range(1);
+    signal grid_col : integer range Grid_Data'range(2);
+    signal grid_chn : integer range Grid_Data'range(3);
+  
+  begin
+  
+    process(Aclk, Aresetn)
     begin
-
-      ----------- Generate zero-padded image -----------
-      gen_row : for row in Padded_Image'range(1) generate
-        gen_col : for col in Padded_Image'range(2) generate
-          gen_chn : for chn in Padded_Image'range(3) generate
-            -- Fill with input image when out of padding range
-            gen_zp : if (row > ZERO_PADDING) and 
-                  (col > ZERO_PADDING) and 
-                  (row <= Padded_Image'high(1) - ZERO_PADDING) and 
-                  (col <= Padded_Image'high(2) - ZERO_PADDING) generate
-              Padded_Image(row, col, chn) <= Conv_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
-            else generate
-              Padded_Image(row, col, chn) <= (others => '0');
-            end generate gen_zp;
-          end generate gen_chn;
-        end generate gen_col;
-      end generate gen_row;
-      --------------------------------------------------
-
-      --------------- Compute convolution --------------
-      convolution_process : process(Aclk, Aresetn)
-        variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
-      begin
-        if Aresetn = '0' then
-          conv_complete <= FALSE;
-          feature_sum := (others => '0');
-          Conv_Feature <= (others => (others => (others => (others => '0'))));
-        elsif rising_edge(Aclk) then
-          if not conv_complete then
-            ----- Multiply Accumulate -----
-            feature_sum := feature_sum
-              -- Add Input Neuron
-              + Padded_Image(
-                STRIDE_STEPS * (conv_row - 1) + mac_row, 
-                STRIDE_STEPS * (conv_col - 1) + mac_col, 
-                conv_chn)
-              -- Multiplied by Kernel Weight
-              * Conv_Kernel(mac_row, mac_col, conv_chn);
-            -------------------------------
-            if not conv_hold then
-              -- Apply ReLU activation
-              if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
-                Conv_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
-              else
-                -- Scale down Result
-                Conv_Feature(conv_row, conv_col, conv_chn) 
-                  <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
-              end if;
-              feature_sum := (others => '0');
-              -- Check if convolution is complete
-              if mac_hold then
-                conv_complete <= TRUE;
-              end if;
-            end if;
-            -------------------------------
-          elsif transfer_complete then
-            conv_complete <= FALSE;
-          end if;
+      if Aresetn = '0' then
+        Stream_Complete <= FALSE;
+        Grid_Data <= (others => (others => (others => (others => '0'))));
+      elsif rising_edge(Aclk) then
+        -------------------------
+        if not grid_hold then
+          Grid_Data(grid_row, grid_col, grid_chn) <= signed(Stream_Data);
         end if;
-      end process;
-      --------------------------------------------------
+        -------------------------
+        if (not Stream_Complete)  and (grid_row = Grid_Data'high(1)) 
+                                  and (grid_col = Grid_Data'high(2)) 
+                                  and (grid_chn = Grid_Data'high(3)) then
+          Stream_Complete <= TRUE;
+        elsif Transfer_Complete then
+          Stream_Complete <= FALSE;
+        end if;
+        -------------------------
+      end if;
+    end process;
+  
+    iterator_stream_grid : grid_iterator
+      generic map (
+        GRID_SIZE       => Grid_Data'high(1),
+        CHANNEL_COUNT   => Grid_Data'high(3)
+        )
+      port map (
+        Aclk    => Aclk,
+        Aresetn => Aresetn,
+        hold    => grid_hold,
+        row     => grid_row,
+        column  => grid_col,
+        channel => grid_chn
+        );
+    
+    Stream_Ready <= Transfer_Complete or (not Stream_Complete);
+    grid_hold    <= (not Stream_Valid) or (not Stream_Ready);
+  
+  end Behavioral;
 
-    end Behavioral;
+
+**HDL - Grid TX Stream Module**
+
+.. figure:: figs/hdl_bd_grid_tx_stream.png
+
+   Figure: Simplified diagram of grid transmit stream interface.
+
+.. code-block:: VHDL
+
+  -- stream_grid_tx.vhd
+  
+  library IEEE;
+  use IEEE.STD_LOGIC_1164.ALL;
+  use IEEE.NUMERIC_STD.ALL;
+  use IEEE.math_real.all;
+  library xil_defaultlib;
+  use xil_defaultlib.mypackage.ALL;
+  
+  entity stream_grid_tx is
+    Generic (
+      GRID_SIZE       : natural := 6;
+      CHANNEL_COUNT   : natural := 3;
+      GRADIENT_BITS   : natural := 8
+    );
+    Port (
+      Aclk     : in std_logic;
+      Aresetn  : in std_logic;
+      -- AXIS
+      Stream_Data     : out std_logic_vector(GRADIENT_BITS-1 downto 0);
+      Stream_Valid    : out boolean;
+      Stream_Ready    : in boolean;
+      -- Data
+      Grid_Data : in GridType(
+        1 to GRID_SIZE,
+        1 to GRID_SIZE,
+        1 to CHANNEL_COUNT
+        ) (GRADIENT_BITS - 1 downto 0);
+      -- Control
+      Transfer_Complete   : in boolean;
+      Stream_Complete     : out boolean
+    );
+  end stream_grid_tx;
+  
+  architecture Behavioral of stream_grid_tx is
+  
+    signal grid_hold : boolean;
+    signal grid_row : integer range Grid_Data'range(1);
+    signal grid_col : integer range Grid_Data'range(2);
+    signal grid_chn : integer range Grid_Data'range(3);
+  
+  begin
+  
+    process(Aclk, Aresetn)
+    begin
+      if Aresetn = '0' then
+        Stream_Complete <= FALSE;
+        Stream_Data <= (others => '0');
+      elsif rising_edge(Aclk) then
+        -------------------------
+        if not grid_hold then
+          Stream_Data <= std_logic_vector(Grid_Data(grid_row, grid_col, grid_chn));
+        end if;
+        -------------------------
+        if (not Stream_Complete)  and (grid_row = Grid_Data'high(1)) 
+                                  and (grid_col = Grid_Data'high(2)) 
+                                  and (grid_chn = Grid_Data'high(3)) then
+          Stream_Complete <= TRUE;
+        elsif Transfer_Complete then
+          Stream_Complete <= FALSE;
+        end if;
+        -------------------------
+      end if;
+    end process;
+  
+    iterator_stream_grid : grid_iterator
+      generic map (
+        GRID_SIZE       => Grid_Data'high(1),
+        CHANNEL_COUNT   => Grid_Data'high(3)
+        )
+      port map (
+        Aclk    => Aclk,
+        Aresetn => Aresetn,
+        hold    => grid_hold,
+        row     => grid_row,
+        column  => grid_col,
+        channel => grid_chn
+        );
+  
+    Stream_Valid <= Transfer_Complete or (not Stream_Complete);
+    grid_hold    <= (not Stream_Valid) or (not Stream_Ready);
+  
+  end Behavioral;
+
+
+An additional module was created to encapsulate convolution operation and allow for independent evaluation of implemented MACC resource utilization. Notice how in this version of the convolution operation there are no **for-loop** statements to apply loop unrolling in the hardware.
+
+**HDL - Convolution Process Module**
+
+.. code-block:: VHDL
+
+  -- process_conv.vhd
+  
+  library IEEE;
+  use IEEE.STD_LOGIC_1164.ALL;
+  use IEEE.NUMERIC_STD.ALL;
+  use IEEE.math_real.all;
+  library xil_defaultlib;
+  use xil_defaultlib.mypackage.ALL;
+  
+  entity process_conv is
+    Generic (
+      IMAGE_SIZE      : positive;     -- I
+      KERNEL_SIZE     : positive;     -- K
+      CHANNELS_IN     : positive;     -- Ci
+      GRADIENT_BITS   : positive;     -- B
+      CHANNELS_OUT    : positive;     -- Co
+      STRIDE_STEPS    : positive;     -- S
+      ZERO_PADDING    : natural;      -- P
+      RELU_ACTIVATION : boolean
+      -- Feature Size: F = (I+2*P-K)/S + 1
+      -- Clock Cycles: C = Ci*Co*F**2
+      );
+    Port (
+      Aclk    : in std_logic;
+      Aresetn : in std_logic;
+      Conv_Image : in GridType(
+        1 to IMAGE_SIZE,
+        1 to IMAGE_SIZE,
+        1 to CHANNELS_IN
+        ) (GRADIENT_BITS - 1 downto 0);
+      Conv_Kernel : in GridType(
+        1 to KERNEL_SIZE,
+        1 to KERNEL_SIZE,
+        1 to (CHANNELS_IN * CHANNELS_OUT)
+        ) (GRADIENT_BITS - 1 downto 0);
+      Conv_Feature : out GridType(
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+        1 to CHANNELS_OUT
+        ) (GRADIENT_BITS - 1 downto 0);
+      macc_hold           : in boolean;
+      macc_row            : in integer range 1 to KERNEL_SIZE;
+      macc_col            : in integer range 1 to KERNEL_SIZE;
+      macc_chn            : in integer range 1 to CHANNELS_IN;
+      conv_hold           : in boolean;
+      conv_row            : in integer range 1 to 
+        (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1;
+      conv_col            : in integer range 1 to 
+        (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1;
+      conv_chn            : in integer range 1 to CHANNELS_OUT;
+      transfer_complete   : in boolean;
+      conv_complete       : out boolean
+      );
+  end process_conv;
+  
+  architecture Behavioral of process_conv is
+  
+    -- Prevents overflow during summation (subtract one because signed)
+    constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
+  
+    signal Padded_Image : GridType(
+      1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+      1 to IMAGE_SIZE + 2 * ZERO_PADDING,
+      1 to CHANNELS_IN
+      ) (GRADIENT_BITS - 1 downto 0);
+  
+  begin
+  
+    ----------- Generate zero-padded image -----------
+    gen_row : for row in Padded_Image'range(1) generate
+      gen_col : for col in Padded_Image'range(2) generate
+        gen_chn : for chn in Padded_Image'range(3) generate
+          -- Fill with input image when out of padding range
+          gen_zp : if (row > ZERO_PADDING) and 
+                (col > ZERO_PADDING) and 
+                (row <= Padded_Image'high(1) - ZERO_PADDING) and 
+                (col <= Padded_Image'high(2) - ZERO_PADDING) generate
+            Padded_Image(row, col, chn) <= Conv_Image(row - ZERO_PADDING, col - ZERO_PADDING, chn);
+          else generate
+            Padded_Image(row, col, chn) <= (others => '0');
+          end generate gen_zp;
+        end generate gen_chn;
+      end generate gen_col;
+    end generate gen_row;
+    --------------------------------------------------
+  
+    --------------- Compute convolution --------------
+    convolution_process : process(Aclk, Aresetn)
+      variable feature_sum : signed(2 * GRADIENT_BITS + BITS4SUM - 1 downto 0);
+    begin
+      if Aresetn = '0' then
+        conv_complete <= FALSE;
+        feature_sum := (others => '0');
+        Conv_Feature <= (others => (others => (others => (others => '0'))));
+      elsif rising_edge(Aclk) then
+        if not conv_complete then
+          ----- Multiply Accumulate -----
+          feature_sum := feature_sum
+            -- Add Input Neuron
+            + Padded_Image(
+              STRIDE_STEPS * (conv_row - 1) + macc_row, 
+              STRIDE_STEPS * (conv_col - 1) + macc_col, 
+              macc_chn)
+            -- Multiplied by Kernel Weight
+            * Conv_Kernel(
+              macc_row, 
+              macc_col, 
+              CHANNELS_IN * (conv_chn - 1) + macc_chn);
+          -------------------------------
+          if not conv_hold then
+            -- Apply ReLU activation
+            if RELU_ACTIVATION and to_integer(feature_sum) < 0 then
+              Conv_Feature(conv_row, conv_col, conv_chn) <= (others => '0');
+            else
+              -- Scale down Result
+              Conv_Feature(conv_row, conv_col, conv_chn) 
+                <= feature_sum(feature_sum'high downto feature_sum'high - GRADIENT_BITS + 1);
+            end if;
+            feature_sum := (others => '0');
+            -- Check if convolution is complete
+            if macc_hold then
+              conv_complete <= TRUE;
+            end if;
+          end if;
+          -------------------------------
+        elsif transfer_complete then
+          conv_complete <= FALSE;
+        end if;
+      end if;
+    end process;
+    --------------------------------------------------
+  
+  end Behavioral;
+
 
 Below is the full implementation of the fully-folded convolution module that incorporates the data-flow control process and instantiates the input/output data streaming module as well as the convolution process module.
 
-**HDL: folded_conv_v2.vhd**
+**HDL - Fully-Folded Convolution Module**
+
+.. figure:: figs/hdl_bd_fconv_v2.png
+
+   Figure: Simplified diagram for the "fully-folded" version of the convolution module.
+
+.. figure:: figs/hdl_bd_fmacc.png
+
+   Figure: Diagram of the MACC operation folded over multiple clock cycles.
 
 .. code-block:: VHDL
 
-    library IEEE;
-    use IEEE.STD_LOGIC_1164.ALL;
-    use IEEE.NUMERIC_STD.ALL;
-    use IEEE.math_real.all;
-    library xil_defaultlib;
-    use xil_defaultlib.mypackage.ALL;
-
-    entity folded_conv_v2 is
-      Generic (
-        IMAGE_SIZE      : natural := 24;    -- I
-        KERNEL_SIZE     : natural := 9;     -- K
-        CHANNEL_COUNT   : natural := 3;     -- Ch
-        GRADIENT_BITS   : natural := 8;     -- B
-        STRIDE_STEPS    : natural := 1;     -- S
-        ZERO_PADDING    : integer := 0;     -- P
-        RELU_ACTIVATION : boolean := TRUE
-        -- Feature Size: F = (I+2*P-K)/S + 1
-        -- Clock Cycles: C = Ch*F**2
-      );
-      Port (
-        Aclk           : in std_logic;
-        Aresetn        : in std_logic;
-        Image_Stream   : in std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Image_Valid    : in boolean;
-        Image_Ready    : out boolean;
-        Kernel_Stream  : in std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Kernel_Valid   : in boolean;
-        Kernel_Ready   : out boolean;
-        Feature_Stream : out std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Feature_Valid  : out boolean;
-        Feature_Ready  : in boolean
-      );
-    end folded_conv_v2;
-
-    architecture Behavioral of folded_conv_v2 is
-
-      -- Prevents overflow during summation (subtract one because signed)
-      constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
-
-      signal Input_Image : GridType(
-        1 to IMAGE_SIZE,
-        1 to IMAGE_SIZE,
-        1 to CHANNEL_COUNT
-        ) (GRADIENT_BITS - 1 downto 0);
-
-      signal Conv_Image : GridType(
-        1 to IMAGE_SIZE,
-        1 to IMAGE_SIZE,
-        1 to CHANNEL_COUNT
-        ) (GRADIENT_BITS - 1 downto 0);
-
-      signal Input_Kernel : GridType(
-        1 to KERNEL_SIZE,
-        1 to KERNEL_SIZE,
-        1 to CHANNEL_COUNT
-        ) (GRADIENT_BITS - 1 downto 0);
-
-      signal Conv_Kernel : GridType(
-        1 to KERNEL_SIZE,
-        1 to KERNEL_SIZE,
-        1 to CHANNEL_COUNT
-        ) (GRADIENT_BITS - 1 downto 0);
-
-      signal Conv_Feature : GridType(
-        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-        1 to CHANNEL_COUNT
-        ) (GRADIENT_BITS - 1 downto 0);
-
-      signal Output_Feature : GridType(
-        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-        1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-        1 to CHANNEL_COUNT
-        ) (GRADIENT_BITS - 1 downto 0);
-      
-      -- MACC iterator signals
-      signal mac_hold : boolean;
-      signal mac_row  : integer range Conv_Kernel'range(1);
-      signal mac_col  : integer range Conv_Kernel'range(2);
-
-      -- Convolution iterator signals
-      signal conv_hold : boolean;
-      signal conv_row : integer range Conv_Feature'range(1);
-      signal conv_col : integer range Conv_Feature'range(2);
-      signal conv_chn : integer range Conv_Feature'range(3);
-
-      -- Data-flow control signals
-      signal image_complete       : boolean;
-      signal kernel_complete      : boolean;
-      signal conv_complete        : boolean;
-      signal feature_complete     : boolean;
-      signal transfer_complete    : boolean;
-
+  -- folded_conv_v2.vhd
+  
+  library IEEE;
+  use IEEE.STD_LOGIC_1164.ALL;
+  use IEEE.NUMERIC_STD.ALL;
+  use IEEE.math_real.all;
+  library xil_defaultlib;
+  use xil_defaultlib.mypackage.ALL;
+  
+  entity folded_conv_v2 is
+    Generic (
+      IMAGE_SIZE      : positive;     -- I
+      KERNEL_SIZE     : positive;     -- K
+      CHANNELS_IN     : positive;     -- Ci
+      GRADIENT_BITS   : positive;     -- B
+      CHANNELS_OUT    : positive;     -- Co
+      STRIDE_STEPS    : positive;     -- S
+      ZERO_PADDING    : natural;      -- P
+      RELU_ACTIVATION : boolean
+      -- Feature Size: F = (I+2*P-K)/S + 1
+      -- Clock Cycles: C = Ci*Co*F**2
+    );
+    Port (
+      Aclk           : in std_logic;
+      Aresetn        : in std_logic;
+      Image_Stream   : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+      Image_Valid    : in boolean;
+      Image_Ready    : out boolean;
+      Kernel_Stream  : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+      Kernel_Valid   : in boolean;
+      Kernel_Ready   : out boolean;
+      Feature_Stream : out std_logic_vector(GRADIENT_BITS-1 downto 0);
+      Feature_Valid  : out boolean;
+      Feature_Ready  : in boolean
+    );
+  end folded_conv_v2;
+  
+  architecture Behavioral of folded_conv_v2 is
+  
+    -- Prevents overflow during summation (subtract one because signed)
+    constant BITS4SUM : integer := integer(ceil(log2(real(KERNEL_SIZE**2)))) - 1;
+  
+    signal Input_Image : GridType(
+      1 to IMAGE_SIZE,
+      1 to IMAGE_SIZE,
+      1 to CHANNELS_IN
+      ) (GRADIENT_BITS - 1 downto 0);
+  
+    signal Conv_Image : GridType(
+      1 to IMAGE_SIZE,
+      1 to IMAGE_SIZE,
+      1 to CHANNELS_IN
+      ) (GRADIENT_BITS - 1 downto 0);
+  
+    signal Input_Kernel : GridType(
+      1 to KERNEL_SIZE,
+      1 to KERNEL_SIZE,
+      1 to CHANNELS_IN * CHANNELS_OUT
+      ) (GRADIENT_BITS - 1 downto 0);
+  
+    signal Conv_Kernel : GridType(
+      1 to KERNEL_SIZE,
+      1 to KERNEL_SIZE,
+      1 to CHANNELS_IN * CHANNELS_OUT
+      ) (GRADIENT_BITS - 1 downto 0);
+  
+    signal Conv_Feature : GridType(
+      1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+      1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+      1 to CHANNELS_OUT
+      ) (GRADIENT_BITS - 1 downto 0);
+  
+    signal Output_Feature : GridType(
+      1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+      1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+      1 to CHANNELS_OUT
+      ) (GRADIENT_BITS - 1 downto 0);
+    
+    -- MAC iterator signals
+    signal macc_hold : boolean;
+    signal macc_row  : integer range Conv_Kernel'range(1);
+    signal macc_col  : integer range Conv_Kernel'range(2);
+    signal macc_chn  : integer range Conv_Kernel'range(3);
+  
+    -- Convolution iterator signals
+    signal conv_hold : boolean;
+    signal conv_row : integer range Conv_Feature'range(1);
+    signal conv_col : integer range Conv_Feature'range(2);
+    signal conv_chn : integer range Conv_Feature'range(3);
+  
+    -- Data-flow control signals
+    signal image_complete       : boolean;
+    signal kernel_complete      : boolean;
+    signal conv_complete        : boolean;
+    signal feature_complete     : boolean;
+    signal transfer_complete    : boolean;
+  
+  begin
+  
+    --------------- Data-flow controller -------------
+    process_dataflow_control : process(Aclk, Aresetn)
     begin
-
-      --------------- Data-flow controller -------------
-      process_dataflow_control : process(Aclk, Aresetn)
-      begin
-        if Aresetn = '0' then
+      if Aresetn = '0' then
+        transfer_complete <= FALSE;
+        Conv_Kernel     <= (others => (others => (others => (others => '0'))));
+        Conv_Image      <= (others => (others => (others => (others => '0'))));
+        Output_Feature  <= (others => (others => (others => (others => '0'))));
+      elsif rising_edge(Aclk) then
+        if transfer_complete then
           transfer_complete <= FALSE;
-          Conv_Kernel     <= (others => (others => (others => (others => '0'))));
-          Conv_Image      <= (others => (others => (others => (others => '0'))));
-          Output_Feature  <= (others => (others => (others => (others => '0'))));
-        elsif rising_edge(Aclk) then
-          if transfer_complete then
-            transfer_complete <= FALSE;
-          elsif image_complete and kernel_complete and conv_complete and feature_complete then
-            Conv_Kernel     <= Input_Kernel;
-            Conv_Image      <= Input_Image;
-            Output_Feature  <= Conv_Feature;
-            transfer_complete <= TRUE;
-          end if;
+        elsif image_complete and kernel_complete and conv_complete and feature_complete then
+          Conv_Kernel     <= Input_Kernel;
+          Conv_Image      <= Input_Image;
+          Output_Feature  <= Conv_Feature;
+          transfer_complete <= TRUE;
         end if;
-      end process;
-      --------------------------------------------------
+      end if;
+    end process;
+    --------------------------------------------------
+  
+    ---------------- RX in image grid ----------------
+    grid_rx_image : stream_grid_rx
+      generic map(
+        GRID_SIZE       => Input_Image'high(1),
+        CHANNEL_COUNT   => Input_Image'high(3),
+        GRADIENT_BITS   => GRADIENT_BITS
+        )
+      port map(
+        Aclk                => Aclk,
+        Aresetn             => Aresetn,
+        Stream_Data         => Image_Stream,
+        Stream_Valid        => Image_Valid,
+        Stream_Ready        => Image_Ready,
+        Grid_Data           => Input_Image,
+        Transfer_Complete   => transfer_complete,
+        Stream_Complete     => image_complete
+        );
+    --------------------------------------------------
+  
+    ---------------- RX in kernel grid ----------------
+    grid_rx_kernel : stream_grid_rx
+      generic map(
+        GRID_SIZE       => Input_Kernel'high(1),
+        CHANNEL_COUNT   => Input_Kernel'high(3),
+        GRADIENT_BITS   => GRADIENT_BITS
+        )
+      port map(
+        Aclk                => Aclk,
+        Aresetn             => Aresetn,
+        Stream_Data         => Kernel_Stream,
+        Stream_Valid        => Kernel_Valid,
+        Stream_Ready        => Kernel_Ready,
+        Grid_Data           => Input_Kernel,
+        Transfer_Complete   => transfer_complete,
+        Stream_Complete     => kernel_complete
+        );
+    --------------------------------------------------
+  
+    --------------- Compute convolution --------------
+    convolution_process : process_conv
+      generic map (
+        IMAGE_SIZE      => IMAGE_SIZE,
+        KERNEL_SIZE     => KERNEL_SIZE,
+        CHANNELS_IN     => CHANNELS_IN,
+        GRADIENT_BITS   => GRADIENT_BITS,
+        CHANNELS_OUT    => CHANNELS_OUT,
+        STRIDE_STEPS    => STRIDE_STEPS,
+        ZERO_PADDING    => ZERO_PADDING,
+        RELU_ACTIVATION => RELU_ACTIVATION
+        )
+      port map (
+        Aclk                => Aclk,
+        Aresetn             => Aresetn,
+        Conv_Image          => Conv_Image,
+        Conv_Kernel         => Conv_Kernel,
+        Conv_Feature        => Conv_Feature,
+        conv_complete       => conv_complete,
+        macc_hold           => macc_hold,
+        macc_row            => macc_row,
+        macc_col            => macc_col,
+        macc_chn            => macc_chn,
+        conv_hold           => conv_hold,
+        conv_row            => conv_row,
+        conv_col            => conv_col,
+        conv_chn            => conv_chn,
+        transfer_complete   => transfer_complete
+        );
+  
+    -- MACC folding iterator state machine
+    iterator_macc_folding : grid_iterator
+      generic map (
+        GRID_SIZE       => Conv_Kernel'high(1),
+        CHANNEL_COUNT   => CHANNELS_IN
+        )
+      port map (
+        Aclk    => Aclk,
+        Aresetn => Aresetn,
+        hold    => macc_hold,
+        row     => macc_row,
+        column  => macc_col,
+        channel => macc_chn
+        );
+    macc_hold <= (conv_complete and (not transfer_complete))
+              or ((macc_row = Conv_Kernel'high(1)) 
+              and (macc_col = Conv_Kernel'high(2)) 
+              and (macc_chn = CHANNELS_IN)
+              and (conv_row = Conv_Feature'high(1)) 
+              and (conv_col = Conv_Feature'high(2)) 
+              and (conv_chn = Conv_Feature'high(3)));
+  
+    -- Convolution folding iterator state machine
+    iterator_conv_folding : grid_iterator
+      generic map (
+        GRID_SIZE       => Conv_Feature'high(1),
+        CHANNEL_COUNT   => Conv_Feature'high(3)
+        )
+      port map (
+        Aclk    => Aclk,
+        Aresetn => Aresetn,
+        hold    => conv_hold,
+        row     => conv_row,
+        column  => conv_col,
+        channel => conv_chn
+        );
+    conv_hold <= (not (
+      (macc_row = Conv_Kernel'high(1)) and 
+      (macc_col = Conv_Kernel'high(2)) and
+      (macc_chn = CHANNELS_IN))) or conv_complete;
+    --------------------------------------------------
+  
+    -------------- TX out feature grid ---------------
+    grid_tx_feature : stream_grid_tx
+      generic map(
+        GRID_SIZE       => Output_Feature'high(1),
+        CHANNEL_COUNT   => Output_Feature'high(3),
+        GRADIENT_BITS   => GRADIENT_BITS
+        )
+      port map(
+        Aclk                => Aclk,
+        Aresetn             => Aresetn,
+        Stream_Data         => Feature_Stream,
+        Stream_Valid        => Feature_Valid,
+        Stream_Ready        => Feature_Ready,
+        Grid_Data           => Output_Feature,
+        Transfer_Complete   => transfer_complete,
+        Stream_Complete     => feature_complete
+        );
+    --------------------------------------------------
+  
+  end Behavioral;
 
-      ---------------- RX in image grid ----------------
-      grid_rx_image : stream_grid_rx
-        generic map(
-          GRID_SIZE       => Input_Image'high(1),
-          CHANNEL_COUNT   => Input_Image'high(3),
-          GRADIENT_BITS   => GRADIENT_BITS
-          )
-        port map(
-          Aclk                => Aclk,
-          Aresetn             => Aresetn,
-          Stream_Data         => Image_Stream,
-          Stream_Valid        => Image_Valid,
-          Stream_Ready        => Image_Ready,
-          Grid_Data           => Input_Image,
-          Transfer_Complete   => transfer_complete,
-          Stream_Complete     => image_complete
-          );
-      --------------------------------------------------
-
-      ---------------- RX in kernel grid ----------------
-      grid_rx_kernel : stream_grid_rx
-        generic map(
-          GRID_SIZE       => Input_Kernel'high(1),
-          CHANNEL_COUNT   => Input_Kernel'high(3),
-          GRADIENT_BITS   => GRADIENT_BITS
-          )
-        port map(
-          Aclk                => Aclk,
-          Aresetn             => Aresetn,
-          Stream_Data         => Kernel_Stream,
-          Stream_Valid        => Kernel_Valid,
-          Stream_Ready        => Kernel_Ready,
-          Grid_Data           => Input_Kernel,
-          Transfer_Complete   => transfer_complete,
-          Stream_Complete     => kernel_complete
-          );
-      --------------------------------------------------
-
-      --------------- Compute convolution --------------
-      convolution_process : process_conv
-        generic map (
-          IMAGE_SIZE      => IMAGE_SIZE,
-          KERNEL_SIZE     => KERNEL_SIZE,
-          CHANNEL_COUNT   => CHANNEL_COUNT,
-          GRADIENT_BITS   => GRADIENT_BITS,
-          STRIDE_STEPS    => STRIDE_STEPS,
-          ZERO_PADDING    => ZERO_PADDING,
-          RELU_ACTIVATION => RELU_ACTIVATION
-          )
-        port map (
-          Aclk                => Aclk,
-          Aresetn             => Aresetn,
-          Conv_Image          => Conv_Image,
-          Conv_Kernel         => Conv_Kernel,
-          Conv_Feature        => Conv_Feature,
-          conv_complete       => conv_complete,
-          mac_hold            => mac_hold,
-          mac_row             => mac_row,
-          mac_col             => mac_col,
-          conv_hold           => conv_hold,
-          conv_row            => conv_row,
-          conv_col            => conv_col,
-          conv_chn            => conv_chn,
-          transfer_complete   => transfer_complete
-          );
-
-      -- MACC folding iterator state machine
-      iterator_mac_folding : grid_iterator
-        generic map (
-          GRID_SIZE       => Conv_Kernel'high(1),
-          CHANNEL_COUNT   => 1
-          )
-        port map (
-          Aclk    => Aclk,
-          Aresetn => Aresetn,
-          hold    => mac_hold,
-          row     => mac_row,
-          column  => mac_col,
-          channel => open
-          );
-      mac_hold <= (conv_complete and (not transfer_complete))
-            or ((mac_row = Conv_Kernel'high(1)) 
-            and (mac_col = Conv_Kernel'high(2)) 
-            and (conv_row = Conv_Feature'high(1)) 
-            and (conv_col = Conv_Feature'high(2)) 
-            and (conv_chn = Conv_Feature'high(3)));
-
-      -- Convolution folding iterator state machine
-      iterator_conv_folding : grid_iterator
-        generic map (
-          GRID_SIZE       => Conv_Feature'high(1),
-          CHANNEL_COUNT   => Conv_Feature'high(3)
-          )
-        port map (
-          Aclk    => Aclk,
-          Aresetn => Aresetn,
-          hold    => conv_hold,
-          row     => conv_row,
-          column  => conv_col,
-          channel => conv_chn
-          );
-      conv_hold <= (not ((mac_row = Conv_Kernel'high(1)) 
-                     and (mac_col = Conv_Kernel'high(2)))) or conv_complete;
-      --------------------------------------------------
-
-      -------------- TX out feature grid ---------------
-      grid_tx_feature : stream_grid_tx
-        generic map(
-          GRID_SIZE       => Output_Feature'high(1),
-          CHANNEL_COUNT   => Output_Feature'high(3),
-          GRADIENT_BITS   => GRADIENT_BITS
-          )
-        port map(
-          Aclk                => Aclk,
-          Aresetn             => Aresetn,
-          Stream_Data         => Feature_Stream,
-          Stream_Valid        => Feature_Valid,
-          Stream_Ready        => Feature_Ready,
-          Grid_Data           => Output_Feature,
-          Transfer_Complete   => transfer_complete,
-          Stream_Complete     => feature_complete
-          );
-      --------------------------------------------------
-
-    end Behavioral;
 
 Simulation:
 
@@ -1297,270 +1382,407 @@ Conclusion
 Appendix
 ========
 
-Custom package
---------------
+Python/PyTorch Convolution Verification Script
+----------------------------------------------
 
-mypackage.vhd
+.. code-block:: python
+
+  # verify_convolution_sim.py
+
+  import torch
+  from torch import conv2d
+  import math
+  
+  file_input  = open('data/sim01/input_data.txt', 'r')
+  file_kernel = open('data/sim01/kernel_data.txt', 'r')
+  file_output = open('data/sim01/output_data.txt', 'r')
+  
+  input_data  = torch.tensor([int(val) for val in file_input.readlines()])
+  kernel_data = torch.tensor([int(val) for val in file_kernel.readlines()])
+  output_data = torch.tensor([int(val) for val in file_output.readlines()])
+  
+  # Load convolution parameters stored in input data file
+  image_size      = int(input_data[0])
+  channels_in     = int(input_data[2])
+  kernel_size     = int(input_data[1])
+  gradient_bits   = int(input_data[3])
+  channels_out    = int(input_data[4])
+  stride_steps    = int(input_data[5])
+  zero_padding    = int(input_data[6])
+  relu_activation = int(input_data[7])
+  
+  feature_size = int((image_size + 2 * zero_padding - kernel_size) / stride_steps + 1)
+  bits4sum = math.ceil(math.log2(kernel_size**2) - 1)
+  conv_batches = int(input_data.size()[0] / (channels_in * image_size**2))
+  
+  print('----------------------------------------')
+  print('Input Size:            ',image_size,'x',image_size,'x',channels_in)
+  print('Kernel Size:           ',kernel_size,'x',kernel_size,'x',channels_in,'x',channels_out)
+  print('Output Feature Size:   ',feature_size,'x',feature_size,'x',channels_out)
+  print('Resolution:            ',gradient_bits,'- bit')
+  print('Stride Steps:          ',stride_steps)
+  print('Zero Padding:          ',zero_padding)
+  print('ReLU Activation:       ',relu_activation)
+  print('Number of Batches:     ',conv_batches)
+  
+  # Initialize multi-dimensional arrays
+  input_array  = torch.zeros(conv_batches, 1,            channels_in,  image_size,  image_size)
+  kernel_array = torch.zeros(conv_batches, channels_out, channels_in,  kernel_size, kernel_size)
+  output_array = torch.zeros(conv_batches, channels_out, feature_size, feature_size)
+  output_check = torch.zeros(conv_batches, channels_out, feature_size, feature_size)
+  
+  idx_i = 8
+  idx_k = 0
+  idx_o = 0
+  
+  # Cycle through all batches
+  for batch in range(conv_batches):
+    # Store input data in multi-dimensional array formatted for PyTorch conv2d
+    for row in range(image_size):
+      for col in range(image_size):
+        for chn in range(channels_in):
+          input_array[batch, 0, chn, row, col] = input_data[idx_i]
+          idx_i += 1
+    # Store kernel weights in multi-dimensional array formatted for PyTorch conv2d
+    for row in range(kernel_size):
+      for col in range(kernel_size):
+        for chn_o in range(channels_out):
+          for chn_i in range(channels_in):
+            kernel_array[batch, chn_o, chn_i, row, col] = kernel_data[idx_k]
+            idx_k += 1
+    # Store output data in multi-dimensional array formatted for PyTorch conv2d
+    for row in range(feature_size):
+      for col in range(feature_size):
+        for chn in range(channels_out):
+          output_array[batch, chn, row, col] = output_data[idx_o]
+          idx_o += 1
+    # Use PyTorch convolution function to generate expected results
+    conv2d_data = conv2d(input_array[batch], kernel_array[batch], padding=zero_padding, stride=stride_steps)
+    # Scale down results to designated bit-width integers
+    output_check[batch] = (conv2d_data / 2**(gradient_bits + bits4sum)).floor()
+  
+  # Check whether VHDL testbench output matches PyTorch expected output
+  num_correct = (output_check == output_array).sum()
+  num_total = torch.tensor(output_check.size()).prod()
+  print('----------------------------------------')
+  if num_correct == num_total:
+    print('Check Passed. All', int(num_total), 'data items match.')
+  else:
+    print('Check Failed.', int(num_total-num_correct), 'out of', int(num_total), 'data items do not match.')
+  print('----------------------------------------')
+
+
+Custom VHDL Package
+-------------------
 
 .. code-block:: VHDL
+  
+  -- mypackage.vhd
   
   library IEEE;
   use IEEE.STD_LOGIC_1164.ALL;
   use IEEE.NUMERIC_STD.ALL;
   use IEEE.math_real.uniform;
   use IEEE.math_real.floor;
-
+  
   package mypackage is
-
-    type GridType is array(natural range <>, natural range <>, natural range <>) of signed;
-
-    component convolution
-      Generic(
-        IMAGE_SIZE      : natural := 6;
-        KERNEL_SIZE     : natural := 3;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8;
-        STRIDE_STEPS    : natural := 1;
-        ZERO_PADDING    : integer := 0
-      );
-      Port (  
-        Aclk            : in std_logic;
-        Aresetn         : in std_logic;
-        Input_Image     : in GridType(  
-          1 to IMAGE_SIZE,
-          1 to IMAGE_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS-1 downto 0);
-        Kernel_Weights  : in GridType(  
-          1 to KERNEL_SIZE,
-          1 to KERNEL_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS-1 downto 0);
-        Feature_Map     : out GridType( 
-          1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
-          1 to (IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS-1 downto 0)
-      );
-    end component;
-
-    component folded_conv
-      Generic(
-        IMAGE_SIZE      : natural := 6;
-        KERNEL_SIZE     : natural := 3;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8;
-        STRIDE_STEPS    : natural := 1;
-        ZERO_PADDING    : integer := 0;
-        RELU_ACTIVATION : boolean := TRUE
-      );
-      Port (
-        Aclk           : in std_logic;
-        Aresetn        : in std_logic;
-        Image_Stream   : in std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Image_Valid    : in boolean;
-        Image_Ready    : out boolean;
-        Kernel_Stream  : in std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Kernel_Valid   : in boolean;
-        Kernel_Ready   : out boolean;
-        Feature_Stream : out std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Feature_Valid  : out boolean;
-        Feature_Ready  : in boolean
-      );
-    end component;
-
-    component process_conv
-      Generic (
-        IMAGE_SIZE      : natural := 24;
-        KERNEL_SIZE     : natural := 9;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8;
-        STRIDE_STEPS    : natural := 1;
-        ZERO_PADDING    : integer := 0;
-        RELU_ACTIVATION : boolean := TRUE
-        );
-      Port (
-        Aclk    : in std_logic;
-        Aresetn : in std_logic;
-        Conv_Image : in GridType(
-          1 to IMAGE_SIZE,
-          1 to IMAGE_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        Conv_Kernel : in GridType(
-          1 to KERNEL_SIZE,
-          1 to KERNEL_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        Conv_Feature : out GridType(
-          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-          1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        mac_hold            : in boolean;
-        mac_row             : in integer range 1 to KERNEL_SIZE;
-        mac_col             : in integer range 1 to KERNEL_SIZE;
-        conv_hold           : in boolean;
-        conv_row            : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1;
-        conv_col            : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1;
-        conv_chn            : in integer range 1 to CHANNEL_COUNT;
-        transfer_complete   : in boolean;
-        conv_complete       : out boolean
-        );
-    end component;
-
-    component relu
-      Generic(
-        FEATURE_SIZE    : natural := 6;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8
-      );
-      Port (
-        Aclk            : in std_logic;
-        Aresetn         : in std_logic;
-        Input_Feature   : in GridType(
-          1 to FEATURE_SIZE,
-          1 to FEATURE_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS-1 downto 0);
-        Output_Feature  : out GridType(
-          1 to FEATURE_SIZE,
-          1 to FEATURE_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS-1 downto 0)
-      );
-    end component;
-
-    component pooling
-      Generic(
-        FEATURE_SIZE    : natural := 6;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8;
-        POOL_SIZE       : natural := 2
-      );
-      Port (  
-        Aclk            : in std_logic;
-        Aresetn         : in std_logic;
-        Feature_In      : in GridType(  
-          1 to FEATURE_SIZE,
-          1 to FEATURE_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS-1 downto 0);
-        Feature_Out     : out GridType( 
-          1 to FEATURE_SIZE/POOL_SIZE,
-          1 to FEATURE_SIZE/POOL_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS-1 downto 0)
-      );
-    end component;
-
-    component interface_conv
-      Generic(
-        FOLDING         : boolean := TRUE;
-        IMAGE_SIZE      : natural := 6;
-        KERNEL_SIZE     : natural := 3;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8;
-        STRIDE_STEPS    : natural := 1;
-        ZERO_PADDING    : integer := 0
-      );
-      Port (  
-        Aclk            : in std_logic;
-        Aresetn         : in std_logic;
-        Input_Image     : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*IMAGE_SIZE**2-1 downto 0);
-        Kernel_Weights  : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*KERNEL_SIZE**2-1 downto 0);
-        Feature_Map     : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*((IMAGE_SIZE+2*ZERO_PADDING-KERNEL_SIZE)/STRIDE_STEPS+1)**2-1 downto 0)
-      );
-    end component;
-
-    component interface_relu
-      Generic(
-        FEATURE_SIZE    : natural := 6;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8
-      );
-      Port (  
-        Aclk            : in std_logic;
-        Aresetn         : in std_logic;
-        Input_Feature   : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0);
-        Output_Feature  : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0)
-      );
-    end component;
+  
+      type GridType is array(natural range <>, natural range <>, natural range <>) of signed;
+  
+      component convolution
+          Generic(
+            IMAGE_SIZE      : positive;
+            KERNEL_SIZE     : positive;
+            CHANNELS_IN     : positive;
+            GRADIENT_BITS   : positive;
+            CHANNELS_OUT    : positive;
+            STRIDE_STEPS    : positive;
+            ZERO_PADDING    : natural;
+            RELU_ACTIVATION : boolean
+          );
+          Port ( 
+              Aclk            : in std_logic;
+              Aresetn         : in std_logic;
+              Input_Image     : in GridType(  
+                  1 to IMAGE_SIZE,
+                  1 to IMAGE_SIZE,
+                  1 to CHANNELS_IN
+                  ) (GRADIENT_BITS - 1 downto 0);
+              Kernel_Weights  : in GridType(  
+                  1 to KERNEL_SIZE,
+                  1 to KERNEL_SIZE,
+                  1 to CHANNELS_IN * CHANNELS_OUT
+                  ) (GRADIENT_BITS - 1 downto 0);
+              Output_Feature  : out GridType( 
+                  1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+                  1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+                  1 to CHANNELS_OUT
+                  ) (GRADIENT_BITS - 1 downto 0)
+          );
+      end component;
+  
+      component folded_conv_v1
+          Generic(
+            IMAGE_SIZE      : positive;
+            KERNEL_SIZE     : positive;
+            CHANNELS_IN     : positive;
+            GRADIENT_BITS   : positive;
+            CHANNELS_OUT    : positive;
+            STRIDE_STEPS    : positive;
+            ZERO_PADDING    : natural;
+            RELU_ACTIVATION : boolean
+          );
+          Port (  
+            Aclk            : in std_logic;
+            Aresetn         : in std_logic;
+            Input_Image     : in GridType(  
+              1 to IMAGE_SIZE,
+              1 to IMAGE_SIZE,
+              1 to CHANNELS_IN
+              ) (GRADIENT_BITS - 1 downto 0);
+            Kernel_Weights    : in GridType(  
+              1 to KERNEL_SIZE,
+              1 to KERNEL_SIZE,
+              1 to CHANNELS_IN * CHANNELS_OUT
+              ) (GRADIENT_BITS - 1 downto 0);
+            Output_Feature  : out GridType( 
+              1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+              1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+              1 to CHANNELS_OUT
+              ) (GRADIENT_BITS - 1 downto 0);
+            conv_complete   : out boolean
+          );
+      end component;
+  
+      component process_conv
+          Generic (
+            IMAGE_SIZE      : positive;
+            KERNEL_SIZE     : positive;
+            CHANNELS_IN     : positive;
+            GRADIENT_BITS   : positive;
+            CHANNELS_OUT    : positive;
+            STRIDE_STEPS    : positive;
+            ZERO_PADDING    : natural; 
+            RELU_ACTIVATION : boolean
+            );
+          Port (
+            Aclk    : in std_logic;
+            Aresetn : in std_logic;
+            Conv_Image : in GridType(
+              1 to IMAGE_SIZE,
+              1 to IMAGE_SIZE,
+              1 to CHANNELS_IN
+              ) (GRADIENT_BITS - 1 downto 0);
+            Conv_Kernel : in GridType(
+              1 to KERNEL_SIZE,
+              1 to KERNEL_SIZE,
+              1 to CHANNELS_IN * CHANNELS_OUT
+              ) (GRADIENT_BITS - 1 downto 0);
+            Conv_Feature : out GridType(
+              1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+              1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1,
+              1 to CHANNELS_OUT
+              ) (GRADIENT_BITS - 1 downto 0);
+            macc_hold           : in boolean;
+            macc_row            : in integer range 1 to KERNEL_SIZE;
+            macc_col            : in integer range 1 to KERNEL_SIZE;
+            macc_chn            : in integer range 1 to CHANNELS_IN;
+            conv_hold           : in boolean;
+            conv_row            : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) /   STRIDE_STEPS + 1;
+            conv_col            : in integer range 1 to (IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) /   STRIDE_STEPS + 1;
+            conv_chn            : in integer range 1 to CHANNELS_OUT;
+            transfer_complete   : in boolean;
+            conv_complete       : out boolean
+            );
+      end component;
+  
+      component relu
+          Generic(
+              FEATURE_SIZE    : natural := 6;
+              CHANNEL_COUNT   : natural := 3;
+              GRADIENT_BITS   : natural := 8
+          );
+          Port (
+              Aclk            : in std_logic;
+              Aresetn         : in std_logic;
+              Input_Feature   : in GridType(
+                  1 to FEATURE_SIZE,
+                  1 to FEATURE_SIZE,
+                  1 to CHANNEL_COUNT
+                  ) (GRADIENT_BITS-1 downto 0);
+              Output_Feature  : out GridType(
+                  1 to FEATURE_SIZE,
+                  1 to FEATURE_SIZE,
+                  1 to CHANNEL_COUNT
+                  ) (GRADIENT_BITS-1 downto 0)
+          );
+      end component;
+  
+      component pooling
+          Generic(
+              FEATURE_SIZE    : natural := 6;
+              CHANNEL_COUNT   : natural := 3;
+              GRADIENT_BITS   : natural := 8;
+              POOL_SIZE       : natural := 2
+          );
+          Port (  
+              Aclk            : in std_logic;
+              Aresetn         : in std_logic;
+              Feature_In      : in GridType(  
+                  1 to FEATURE_SIZE,
+                  1 to FEATURE_SIZE,
+                  1 to CHANNEL_COUNT
+                  ) (GRADIENT_BITS-1 downto 0);
+              Feature_Out     : out GridType( 
+                  1 to FEATURE_SIZE/POOL_SIZE,
+                  1 to FEATURE_SIZE/POOL_SIZE,
+                  1 to CHANNEL_COUNT
+                  ) (GRADIENT_BITS-1 downto 0)
+          );
+      end component;
+  
+      component interface_conv
+          Generic(
+            IMAGE_SIZE      : positive;
+            KERNEL_SIZE     : positive;
+            CHANNELS_IN     : positive;
+            GRADIENT_BITS   : positive;
+            CHANNELS_OUT    : positive;
+            STRIDE_STEPS    : positive;
+            ZERO_PADDING    : natural;
+            RELU_ACTIVATION : boolean;
+            FOLDED_CONV     : boolean
+          );
+          Port (  
+            Aclk            : in std_logic;
+            Aresetn         : in std_logic;
+            Input_Image     : in std_logic_vector(
+                GRADIENT_BITS * CHANNELS_IN * IMAGE_SIZE**2 - 1 downto 0);
+            Kernel_Weights  : in std_logic_vector(
+                GRADIENT_BITS * CHANNELS_IN * CHANNELS_OUT * KERNEL_SIZE**2 - 1 downto 0);
+            Output_Feature  : out std_logic_vector(
+                GRADIENT_BITS * CHANNELS_OUT 
+                * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2 - 1 downto 0);
+            conv_complete   : out boolean
+          );
+      end component;
+  
+      component interface_relu
+          Generic(
+              FEATURE_SIZE    : natural := 6;
+              CHANNEL_COUNT   : natural := 3;
+              GRADIENT_BITS   : natural := 8
+          );
+          Port (  
+              Aclk            : in std_logic;
+              Aresetn         : in std_logic;
+              Input_Feature   : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0);
+              Output_Feature  : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0)
+          );
+      end component;
    
-    component interface_pool
-      Generic(
-        FEATURE_SIZE    : natural := 6;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8;
-        POOL_SIZE       : natural := 2
-      );
-      Port (
-        Aclk        : in std_logic;
-        Aresetn     : in std_logic;
-        Feature_In  : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0);
-        Feature_Out : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*(FEATURE_SIZE/POOL_SIZE)**2-1 downto 0)
-      );
-    end component;
-
-    component grid_iterator
-      Generic(
-        GRID_SIZE       : natural := 8;
-        CHANNEL_COUNT   : natural := 3
-      );
-      Port (
-        Aclk    : in std_logic;
-        Aresetn : in std_logic;
-        hold    : in boolean;
-        row     : out integer range 1 to GRID_SIZE;
-        column  : out integer range 1 to GRID_SIZE;
-        channel : out integer range 1 to CHANNEL_COUNT
-      );
-    end component;
-
-    component stream_grid_tx
-      Generic (
-        GRID_SIZE       : natural := 6;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8
-      );
-      Port (
-        Aclk     : in std_logic;
-        Aresetn  : in std_logic;
-        Stream_Data     : out std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Stream_Valid    : out boolean;
-        Stream_Ready    : in boolean;
-        Grid_Data : in GridType(
-          1 to GRID_SIZE,
-          1 to GRID_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        Transfer_Complete   : in boolean;
-        Stream_Complete     : out boolean
-      );
-    end component;
-
-    component stream_grid_rx
-      Generic (
-        GRID_SIZE       : natural := 6;
-        CHANNEL_COUNT   : natural := 3;
-        GRADIENT_BITS   : natural := 8
-      );
-      Port (
-        Aclk     : in std_logic;
-        Aresetn  : in std_logic;
-        Stream_Data     : in std_logic_vector(GRADIENT_BITS-1 downto 0);
-        Stream_Valid    : in boolean;
-        Stream_Ready    : out boolean;
-        Grid_Data : out GridType(
-          1 to GRID_SIZE,
-          1 to GRID_SIZE,
-          1 to CHANNEL_COUNT
-          ) (GRADIENT_BITS - 1 downto 0);
-        Transfer_Complete   : in boolean;
-        Stream_Complete     : out boolean
-      );
-    end component;
-
+      component interface_pool
+          Generic(
+              FEATURE_SIZE    : natural := 6;
+              CHANNEL_COUNT   : natural := 3;
+              GRADIENT_BITS   : natural := 8;
+              POOL_SIZE       : natural := 2
+          );
+          Port (
+              Aclk        : in std_logic;
+              Aresetn     : in std_logic;
+              Feature_In  : in std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*FEATURE_SIZE**2-1 downto 0);
+              Feature_Out : out std_logic_vector(GRADIENT_BITS*CHANNEL_COUNT*(FEATURE_SIZE/POOL_SIZE)**2-1  downto 0)
+          );
+      end component;
+  
+      component grid_iterator
+          Generic(
+              GRID_SIZE       : natural := 8;
+              CHANNEL_COUNT   : natural := 3
+          );
+          Port (
+              Aclk    : in std_logic;
+              Aresetn : in std_logic;
+              hold    : in boolean;
+              row     : out integer range 1 to GRID_SIZE;
+              column  : out integer range 1 to GRID_SIZE;
+              channel : out integer range 1 to CHANNEL_COUNT
+          );
+      end component;
+  
+      component stream_grid_tx
+          Generic (
+              GRID_SIZE       : natural := 6;
+              CHANNEL_COUNT   : natural := 3;
+              GRADIENT_BITS   : natural := 8
+          );
+          Port (
+              Aclk     : in std_logic;
+              Aresetn  : in std_logic;
+              Stream_Data     : out std_logic_vector(GRADIENT_BITS-1 downto 0);
+              Stream_Valid    : out boolean;
+              Stream_Ready    : in boolean;
+              Grid_Data : in GridType(
+                  1 to GRID_SIZE,
+                  1 to GRID_SIZE,
+                  1 to CHANNEL_COUNT
+                  ) (GRADIENT_BITS - 1 downto 0);
+              Transfer_Complete   : in boolean;
+              Stream_Complete     : out boolean
+          );
+      end component;
+  
+      component stream_grid_rx
+          Generic (
+              GRID_SIZE       : natural := 6;
+              CHANNEL_COUNT   : natural := 3;
+              GRADIENT_BITS   : natural := 8
+          );
+          Port (
+              Aclk     : in std_logic;
+              Aresetn  : in std_logic;
+              Stream_Data     : in std_logic_vector(GRADIENT_BITS-1 downto 0);
+              Stream_Valid    : in boolean;
+              Stream_Ready    : out boolean;
+              Grid_Data : out GridType(
+                  1 to GRID_SIZE,
+                  1 to GRID_SIZE,
+                  1 to CHANNEL_COUNT
+                  ) (GRADIENT_BITS - 1 downto 0);
+              Transfer_Complete   : in boolean;
+              Stream_Complete     : out boolean
+          );
+      end component;
+  
+      -- Procedures
+      procedure random_grid(
+          urange, bitwidth : in positive; 
+          variable s1, s2 : inout positive; 
+          signal input_grid : inout GridType);
+  
   end package mypackage;
+  
+  
+  package body mypackage is
+  
+      procedure random_grid(
+          urange, bitwidth : in positive; 
+          variable s1, s2 : inout positive;
+          signal input_grid : inout GridType) is
+          variable x : real;
+      begin
+          for i in input_grid'range(1) loop
+              for j in input_grid'range(2) loop
+                  for k in input_grid'range(3) loop
+                      uniform(s1, s2, x);
+                      input_grid(i,j,k) <= to_signed(integer(floor((x - 0.5) * real(urange))), bitwidth);
+                  end loop;
+              end loop;
+          end loop;
+      end random_grid;
+  
+  end package body mypackage;
+
 
 
