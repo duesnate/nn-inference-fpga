@@ -2,9 +2,9 @@ import torch
 from torch import conv2d
 import math
 
-file_input  = open('/home/nate/UCLA/project/figs/sim/conv2/input_data.txt', 'r')
-file_kernel = open('/home/nate/UCLA/project/figs/sim/conv2/kernel_data.txt', 'r')
-file_output = open('/home/nate/UCLA/project/figs/sim/conv2/output_data.txt', 'r')
+file_input  = open('/home/nate/UCLA/project/python/data/conv1/input_data.txt', 'r')
+file_kernel = open('/home/nate/UCLA/project/python/data/conv1/kernel_data.txt', 'r')
+file_output = open('/home/nate/UCLA/project/python/data/conv1/output_data.txt', 'r')
 
 input_data  = torch.tensor([int(val) for val in file_input.readlines()])
 kernel_data = torch.tensor([int(val) for val in file_kernel.readlines()])

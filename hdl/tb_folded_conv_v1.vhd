@@ -15,12 +15,12 @@ end tb_folded_conv_v1;
 architecture Behavioral of tb_folded_conv_v1 is
     
     constant IMAGE_SIZE         : positive := 32;
-    constant KERNEL_SIZE        : positive := 8;
+    constant KERNEL_SIZE        : positive := 12;
     constant CHANNELS_IN        : positive := 3;
     constant GRADIENT_BITS      : positive := 8;
-    constant CHANNELS_OUT       : positive := 6;
-    constant STRIDE_STEPS       : positive := 2;
-    constant ZERO_PADDING       : natural := 2;
+    constant CHANNELS_OUT       : positive := 16;
+    constant STRIDE_STEPS       : positive := 4;
+    constant ZERO_PADDING       : natural := 4;
     constant RELU_ACTIVATION    : boolean := FALSE;
 
     signal RELU_INT : natural;
@@ -71,7 +71,10 @@ begin
 
     process
         -- Seeds for random number generator
-        variable s1, s2 : positive;
+        variable s1 : positive := 123;
+        variable s2 : positive := 12345;
+        variable s3 : positive := 123456;
+        variable s4 : positive := 1234567;
         -- Output file handles/variables
         file file_input : text;
         file file_kernel : text;
@@ -94,14 +97,14 @@ begin
         write(line_buf, integer'image(RELU_INT)); writeline(file_input, line_buf);
         -- Start simulation
         Aresetn <= '0';
-        wait for 100 ns;
+        wait for 99.9 ns;
         Aresetn <= '1';
         for i in 1 to 10 loop
             -- Generate pseudo-random input data
             random_grid(2**GRADIENT_BITS, GRADIENT_BITS, s1, s2, Input_Image);
-            random_grid(2**GRADIENT_BITS, GRADIENT_BITS, s1, s2, Kernel_Weights);
+            random_grid(2**GRADIENT_BITS, GRADIENT_BITS, s2, s3, Kernel_Weights);
             wait for 10 ns;
-            -- Wait for convolution to complete
+            -- Wait for initial convolution to complete
             while not conv_complete loop
                 wait for 10 ns;
             end loop;

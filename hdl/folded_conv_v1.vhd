@@ -76,6 +76,8 @@ architecture Behavioral of folded_conv_v1 is
   signal conv_col  : integer range Output_Feature'range(2);
   signal conv_chn  : integer range Output_Feature'range(3);
 
+  signal conv_edge : boolean;
+
 begin
 
   ----------- Generate zero-padded image -----------
@@ -150,7 +152,18 @@ begin
       column  => conv_col,
       channel => conv_chn
       );
-  conv_complete <= (conv_row = Output_Feature'high(1)) and (conv_col = Output_Feature'high(2));
+  conv_complete <= not conv_edge and (
+                  (conv_row = Output_Feature'high(1)) 
+              and (conv_col = Output_Feature'high(2))
+              and (conv_chn = Output_Feature'high(3)));
+  process(Aclk, Aresetn)
+  begin
+    if Aresetn = '0' then
+      conv_edge <= FALSE;
+    elsif rising_edge(Aclk) then
+      conv_edge <= conv_complete;
+    end if;
+  end process;
   --------------------------------------------------
 
 end Behavioral;

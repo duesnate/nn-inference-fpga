@@ -400,6 +400,47 @@ Zero-padding and stride length equations [https://arxiv.org/pdf/1603.07285.pdf]
 | Register as Latch                                     | 0    | 35200     | 0.00          |
 +-------------------------------------------------------+------+-----------+---------------+
 
+Simulation:
+
+.. figure:: figs/sim/convolution/convolution_4-3-3-8-2-1-1-F.png
+
+   Figure: Test bench simulation of the fully-unrolled convolution module.
+
+Testbench results Verification:
+
+.. code-block:: python
+
+  ----------------------------------------
+  Input Size:             4 x 4 x 3
+  Kernel Size:            3 x 3 x 3 x 2
+  Output Feature Size:    4 x 4 x 2
+  Resolution:             8 - bit
+  Stride Steps:           1
+  Zero Padding:           1
+  ReLU Activation:        0
+  Number of Batches:      10
+  ----------------------------------------
+  Check Passed. All 320 data items match.
+  ----------------------------------------
+
+Larger image input test and verification:
+
+.. code-block:: python
+
+  ----------------------------------------
+  Input Size:             32 x 32 x 3
+  Kernel Size:            9 x 9 x 3 x 12
+  Output Feature Size:    10 x 10 x 12
+  Resolution:             8 - bit
+  Stride Steps:           3
+  Zero Padding:           2
+  ReLU Activation:        0
+  Number of Batches:      10
+  ----------------------------------------
+  Check Passed. All 12000 data items match.
+  ----------------------------------------
+
+
 Folded Convolution
 ------------------
 
@@ -599,6 +640,46 @@ The design quickly becomes much more complex when facilitating folding operation
       --------------------------------------------------
 
     end Behavioral;
+
+Testbench Simulation:
+
+.. figure:: figs/sim/conv1/conv1_4-2-3-8-2-1-0-F.png
+
+   Figure: Folded convolution v1 simulated testbench.
+
+Results Verification Check:
+
+.. code-block:: python
+
+  ----------------------------------------
+  Input Size:             4 x 4 x 3
+  Kernel Size:            2 x 2 x 3 x 2
+  Output Feature Size:    3 x 3 x 2
+  Resolution:             8 - bit
+  Stride Steps:           1
+  Zero Padding:           0
+  ReLU Activation:        0
+  Number of Batches:      10
+  ----------------------------------------
+  Check Failed. 1 out of 180 data items do not match.
+  ----------------------------------------
+
+Larger image simulation and verification:
+
+.. code-block:: python
+
+  ----------------------------------------
+  Input Size:             32 x 32 x 3
+  Kernel Size:            12 x 12 x 3 x 16
+  Output Feature Size:    8 x 8 x 16
+  Resolution:             8 - bit
+  Stride Steps:           4
+  Zero Padding:           4
+  ReLU Activation:        0
+  Number of Batches:      10
+  ----------------------------------------
+  Check Failed. 1 out of 10240 data items do not match.
+  ----------------------------------------
 
 Large kernels on this design will continue to prove difficult for resource constrained applications and is especially difficult for timing closure. The number of values to be summed in a MACC operation is equal to the number of weights in the kernel. For example, an 8x8 kernel would require 63 addition operations to be resolved before the next rising clock edge. As kernel sizes increase even further, place-and-route tools will have difficulty implementing physical logic that satisfies even a relatively slow running clock. Techniques can be used to guide the implementation tool towards a solution that will potentially satisfy timing. This could be done by describing VHDL with parallel adder operations on half the products with the other half and repeating the technique all the way down the chain until there is a single result. Rather than chaining together 63 adders in sequence, the tool would implement the same 63 additions in a sequence of 32-16-8-4-2-1 parallel adders decreasing the chain sequence down to just 6 steps. Another technique would be to apply timing constraints that allow for multi-cycle paths which would provide additional clock periods for the process to resolve. This would also require special considerations in iteration rates and clocking of data going in and out of the MACC unit and would increase design complexity accordingly.
 
@@ -1166,7 +1247,7 @@ Simulation:
 
    Figure: Input Stream
 
-Verify Results:
+Verify Simulation Results:
 
 .. code-block:: python
 
@@ -1183,7 +1264,22 @@ Verify Results:
   Check Failed. 1 out of 80 data items do not match.
   ----------------------------------------
 
+Check large simulation with zero-padding and stride:
 
+.. code-block:: python
+
+  ----------------------------------------
+  Input Size:             24 x 24 x 3
+  Kernel Size:            8 x 8 x 3 x 6
+  Output Feature Size:    11 x 11 x 6
+  Resolution:             8 - bit
+  Stride Steps:           2
+  Zero Padding:           2
+  ReLU Activation:        0
+  Number of Batches:      5
+  ----------------------------------------
+  Check Passed. All 3630 data items match.
+  ----------------------------------------
 
 
 Direction of Future Work
