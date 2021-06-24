@@ -1,14 +1,17 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date:
 -- Design Name: 
--- Module Name: wrap_pool - Behavioral
--- Project Name: 
+-- Module Name: wrap_pool
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              This wrapper is required for dropping the pooling module
+--              into a Vivado block design. Currently, Vivado does not support
+--              dropping VHDL-2008 module files directly into a block design.
 -- 
 -- Dependencies: 
 -- 

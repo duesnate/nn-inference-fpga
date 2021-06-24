@@ -1,16 +1,30 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 10/26/2019 09:17:28 PM
 -- Design Name: 
--- Module Name: convolution - Behavioral
--- Project Name: 
+-- Module Name: convolution
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
--- Description: 
+-- Tool Versions: Vivado 2019.1
+-- Description:
+--              Fully unrolled convolution module. Realizes a modular and 
+--              scalable building block that can be used to define a variety of
+--              convolutional layer types by using generic parameters. 
+--              Parameters allow the module to support any image size or input
+--              feature map of four or less dimensions.
+--
+--              This module is designed as a fully loop-unrolled single-clock 
+--              convolution accelerator. This means that a successful
+--              implementation will process one full image (or feature map)
+--              input in just one clock cycle. If desired, all kernel weights
+--              can be updated for every image that is processed. The obvious
+--              drawback to this fully parallelized implementation is the high
+--              utilization of logic slice look-up tables (LUTs).
+----------------------------------------------------------------
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

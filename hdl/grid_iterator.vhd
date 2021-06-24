@@ -1,16 +1,21 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date:
 -- Design Name: 
--- Module Name: grid_iterator - Behavioral
--- Project Name: 
+-- Module Name: grid_iterator
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              This module was developed for the purpose of iterating through
+--              multi-dimensional "GridType" arrays over multiple clock cycles.
+--              This module is instanciated within folded convolution 
+--              implementations.
+----------------------------------------------------------------
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

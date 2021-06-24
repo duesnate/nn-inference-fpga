@@ -1,4 +1,10 @@
--- mypackage.vhd
+----------------------------------------------------------------------------------
+-- Engineer: Nathan Duescher
+-- Package Name: mypackage
+-- Project Name: nn-inference-fpga
+-- Tool Versions: Vivado 2019.1
+-- Dependencies: VHDL-2008
+----------------------------------------------------------------------------------
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -293,6 +299,8 @@ end package mypackage;
 
 package body mypackage is
 
+    -- Generate a GridType signal populated with random numbers. Used for test
+    -- bench simulations
     procedure random_grid(
         urange, bitwidth : in positive; 
         variable s1, s2 : inout positive;

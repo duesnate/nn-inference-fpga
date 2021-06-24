@@ -1,16 +1,29 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 10/26/2019 09:17:28 PM
 -- Design Name: 
--- Module Name: interface_conv - Behavioral
--- Project Name: 
+-- Module Name: interface_conv
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              This module converts from the multi-dimensional array type 
+--              "GridType" to/from std_logic_vector in order to allow for 
+--              integration with external data streams.
+--
+--              Four dimensions must be mapped into a single std_logic_vector.
+--              Each neuron is stored in contiguous bits of size GRADIENT_BITS.
+--              The remaining three dimensions are stored by first iterating 
+--              through channels, then columns, and then finally rows. This can 
+--              be considered to be row-major in terms of rows and columns. Then
+--              can be considered column-major in terms of columns and channels.
+--
+--              Requires the wrap_conv.vhd module prior to being dropped into
+--              a Vivado block design.
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created
@@ -45,8 +58,8 @@ entity interface_conv is
         Kernel_Weights  : in std_logic_vector(
             GRADIENT_BITS * CHANNELS_IN * CHANNELS_OUT * KERNEL_SIZE**2 - 1 downto 0);
         Output_Feature  : out std_logic_vector(
-            GRADIENT_BITS * CHANNELS_OUT 
-            * ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2 - 1 downto 0);
+            GRADIENT_BITS * CHANNELS_OUT * 
+            ((IMAGE_SIZE + 2 * ZERO_PADDING - KERNEL_SIZE) / STRIDE_STEPS + 1)**2 - 1 downto 0);
         conv_complete   : out boolean
     );
 end interface_conv;

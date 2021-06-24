@@ -1,16 +1,16 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 
 -- Design Name: 
--- Module Name: folded_pool - Behavioral
--- Project Name: 
+-- Module Name: folded_pool
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

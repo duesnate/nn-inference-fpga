@@ -1,16 +1,17 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 11/28/2019 09:17:28 PM
 -- Design Name: 
--- Module Name: stream_grid_rx - Behavioral
--- Project Name: 
+-- Module Name: stream_grid_rx
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              Used for streaming data to/from folded_conv_v2 module
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

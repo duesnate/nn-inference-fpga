@@ -1,16 +1,37 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 10/26/2019 09:17:28 PM
 -- Design Name: 
--- Module Name: folded_conv_v1 - Behavioral
--- Project Name: 
+-- Module Name: folded_conv_v1
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
--- 
--- Dependencies: 
+--              This design applied folding such that each kernel step required
+--              one clock cycle. This extended the convolution operation over a
+--              number of clocks equal to the number of neurons in the 
+--              feature-map output. For example, an 8x8 3-channel input with a
+--              4x4 kernel would require 3*(8-4+1)^2 = 75 clocks. In this
+--              design, a 4x4 kernel will instantiate logic for 16 individual
+--              multipliers and 15 adders in order to process the MACC operation
+--              in a single clock. By time-multiplexing numerous MACC operations
+--              on a single instance, this design provided great improvements in
+--              resource usage.
+--
+--              Large kernels on this design will continue to prove difficult 
+--              for resource constrained applications and is especially 
+--              difficult for timing closure. The number of values to be summed 
+--              in a MACC operation is equal to the number of weights in the 
+--              kernel. For example, an 8x8 kernel would require 63 addition 
+--              operations to be resolved before the next rising clock edge. As 
+--              kernel sizes increase even further, place-and-route tools will 
+--              have difficulty implementing physical logic that satisfies even 
+--              a relatively slow running clock.
+----------------------------------------------------------------
+--
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

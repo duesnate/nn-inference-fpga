@@ -1,16 +1,29 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 
 -- Design Name: 
--- Module Name: interface_pool - Behavioral
--- Project Name: 
+-- Module Name: interface_pool
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              This module converts from the multi-dimensional array type 
+--              "GridType" to/from std_logic_vector in order to allow for 
+--              integration with external data streams.
+--
+--              Four dimensions must be mapped into a single std_logic_vector.
+--              Each neuron is stored in contiguous bits of size GRADIENT_BITS.
+--              The remaining three dimensions are stored by first iterating 
+--              through channels, then columns, and then finally rows. This can 
+--              be considered to be row-major in terms of rows and columns. Then
+--              can be considered column-major in terms of columns and channels.
+--
+--              Requires the wrap_pool.vhd module prior to being dropped into
+--              a Vivado block design.
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

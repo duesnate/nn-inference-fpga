@@ -1,16 +1,36 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 
 -- Design Name: 
--- Module Name: pooling - Behavioral
--- Project Name: 
+-- Module Name: pooling
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              UNTESTED!!
 -- 
--- Dependencies: 
+--              Max-pooling implementation
+--
+--              Pooling layers are useful in CNN designs because they limit 
+--              computational complexity while also functioning to prevent over-
+--              fitting during training. Pooling can be thought of as a process 
+--              of down-sampling the feature maps at the output of a 
+--              convolutional layer. There are a number of different pooling 
+--              functions that are used in CNN designs. Two very common 
+--              functions are average-pooling and max-pooling. As the name 
+--              suggests, the pooling function moves across the range of the 
+--              feature map and consolidates or "pools" individual sections down 
+--              to a single value. A typical example of a pooling operation is a 
+--              2x2 square that reduces every four feature map neurons down to a 
+--              single max or averaged value neuron output. A 2x2 block that 
+--              iterates over an 8x8 feature map without overlaps would 
+--              effectively downsample the feature to a 4x4 output, cutting its 
+--              dimensions in half
+----------------------------------------------------------------
+--
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created
@@ -62,6 +82,7 @@ begin
                 for col in Feature_Out'range(2) loop
                     for channel in Feature_Out'range(3) loop
                         ---------------MAX FUNCTION--------------
+                        -- Set initial max value to largest negative number possible
                         max_val := (max_val'high => '1', others => '0');
                         for ri in (row - 1) * POOL_SIZE + 1 to row * POOL_SIZE loop
                             for ci in (col - 1) * POOL_SIZE + 1 to col * POOL_SIZE loop

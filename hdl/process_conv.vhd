@@ -1,16 +1,18 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 12/02/2019 09:17:28 PM
 -- Design Name: 
--- Module Name: process_conv - Behavioral
--- Project Name: 
+-- Module Name: process_conv
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              Special implementation of the convolution operation to be used
+--              in the folded_conv_v2 module.
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

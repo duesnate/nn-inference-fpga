@@ -1,16 +1,20 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 10/26/2019 09:17:28 PM
 -- Design Name: 
--- Module Name: relu - Behavioral
--- Project Name: 
+-- Module Name: relu
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              Rectified Linear Unit (ReLU) is One of the most effective and 
+--              also perhaps the most simple of the available non-linear 
+--              activation functions. This module simply converts all negative 
+--              input values to zeros while leaving postive values unchanged.
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

@@ -1,16 +1,37 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
--- Create Date:
+-- Create Date: 10/2019
 -- Design Name: 
--- Module Name: fully_connected - Behavioral
--- Project Name: 
+-- Module Name: fully_connected
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              The fully connected (FC) layer of a CNN is primarily used at the 
+--              final stage of the network model and serves to transform the 
+--              resulting feature activations into the final image 
+--              classification. Multiple FC layers may, however, be used 
+--              throughout the model as hidden layers. It is most common, 
+--              however, for these to be instantiated in sequence of decreasing 
+--              neuron size at the end of a model. The number of neurons used in 
+--              each hidden layer can be adjusted during the design and training 
+--              phase for optimizing performance. It is important to note though 
+--              that the number of possible image classifications will determine 
+--              the number of neurons in the final FC layer. Each classification 
+--              label will be assigned to an output neuron and whichever neuron 
+--              is most favored will be used as the network's prediction. As the 
+--              name suggests, FC layers require that each neuron be connected 
+--              to all the neurons of neighboring FC layers making them 
+--              particularly resource heavy. Each neuron requires one trained 
+--              bias value and a number of trained weight values equal to the 
+--              number of neurons in the following FC layer. These layers 
+--              require a large overhead of trained values that must be stored 
+--              in memory and made available to the model when needed.
+----------------------------------------------------------------
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

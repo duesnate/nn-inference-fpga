@@ -1,16 +1,46 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 10/26/2019 09:17:28 PM
 -- Design Name: 
--- Module Name: folded_conv_v2 - Behavioral
--- Project Name: 
+-- Module Name: folded_conv_v2
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              This design applies additional folding of the convolution block 
+--              such that a single MACC will now sequentially process the entire 
+--              convolution using just one multiply and one addition. The number 
+--              of clocks required for this implementation will be equal to the 
+--              number of neuron outputs multiplied by the number of weights in 
+--              the kernel. The same 8x8 3-channel input with a 4x4 kernel will 
+--              now require 3*4^2*(8-4+1)^2 = 1200 clock cycles to complete. 
+--              Although this will provide additional resource savings, it will 
+--              be at the cost of much greater latency and throughput.
+--            
+--              Additional resources are required to facilitate coordination of 
+--              iterative operation sequences and in-turn drives up design 
+--              complexity. The high degree of folding applied using iterator 
+--              modules and data-flow logic in this design demonstrated poor 
+--              resource utilization trade-offs given the massive increase in 
+--              throughput and latency. Much of the logic resources saved by the 
+--              reduction in MACC units was consumed by the additional iterator 
+--              control logic required to orchestrate the folding process. This 
+--              implementation method can certainly be changed, optimized, and 
+--              improved upon in order to achieve greater efficiency trade-offs. 
+--              The effort to make these improvements is difficult to justify 
+--              though because a "fully-folded" sequential architecture will in 
+--              a way defeat the purpose of using FPGAs to begin with. 
+--              Regardless, this design exercise was beneficial for both the 
+--              analysis and experience provided.
+--
+--              This design incorporates an input and output data streaming 
+--              architecture for the input image and kernel weights and output 
+--              feature map using streaming modules.
+----------------------------------------------------------------
 -- 
--- Dependencies: 
+-- Dependencies: VHDL-2008
 -- 
 -- Revision:
 -- Revision 0.01 - File Created

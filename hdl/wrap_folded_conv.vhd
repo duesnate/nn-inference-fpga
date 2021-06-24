@@ -1,14 +1,17 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 11/29/2019 11:13:54 AM
 -- Design Name: 
--- Module Name: wrap_folded_conv - Behavioral
--- Project Name: 
+-- Module Name: wrap_folded_conv
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              This wrapper is required for dropping the folded_conv_v2 module
+--              into a Vivado block design. Currently, Vivado does not support
+--              dropping VHDL-2008 module files directly into a block design.
 -- 
 -- Dependencies: 
 -- 

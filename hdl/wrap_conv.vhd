@@ -1,14 +1,17 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Nathan Duescher
 -- 
 -- Create Date: 10/27/2019 11:13:54 AM
 -- Design Name: 
--- Module Name: wrap_conv - Behavioral
--- Project Name: 
+-- Module Name: wrap_conv
+-- Project Name: nn-inference-fpga
 -- Target Devices: 
--- Tool Versions: 
+-- Tool Versions: Vivado 2019.1
 -- Description: 
+--              This wrapper is required for dropping the convolution modules
+--              into a Vivado block design. Currently, Vivado does not support
+--              dropping VHDL-2008 module files directly into a block design.
 -- 
 -- Dependencies: 
 -- 
