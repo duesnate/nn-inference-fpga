@@ -4,7 +4,6 @@ CNN Inference on FPGAs: Project Report
 **************************************
 
 Nathan Duescher
-===============
 
 Introduction
 ============

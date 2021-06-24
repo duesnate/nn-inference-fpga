@@ -3,6 +3,7 @@
 *.log
 *.jou
 *.sublime-workspace
+*.sublime-project
 *.ld
 *.pdf
 *.str
