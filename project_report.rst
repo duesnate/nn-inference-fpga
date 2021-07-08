@@ -1774,11 +1774,9 @@ Citations
 
 1. Umuroglu, Yaman et al. “FINN.” Proceedings of the 2017 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays - FPGA  ’17 (2017): n. pag. Crossref. Web.
 
-2. Stylianos I. Venieris, Alexandros Kouris and Christos-Savvas Bouganis. 2018. Toolflows for Mapping Convolutional Neural Networks on FPGAs: A Survey and Future Directions. ACM Comput. Surv. 0, 0, Article 0
-(March 2018), 36 pages.
+2. Stylianos I. Venieris, Alexandros Kouris and Christos-Savvas Bouganis. 2018. Toolflows for Mapping Convolutional Neural Networks on FPGAs: A Survey and Future Directions. ACM Comput. Surv. 0, 0, Article 0 (March 2018), 36 pages.
 
-3. Kaiyuan Guo, Shulin Zeng, Jincheng Yu, Yu Wang and Huazhong Yang. 2017. [DL] A Survey of FPGA-Based
-Neural Network Inference Accelerator. ACM Trans. Recong. Technol. Syst. 9, 4, Article 11 (December 2017), 26 pages.
+3. Kaiyuan Guo, Shulin Zeng, Jincheng Yu, Yu Wang and Huazhong Yang. 2017. [DL] A Survey of FPGA-Based Neural Network Inference Accelerator. ACM Trans. Recong. Technol. Syst. 9, 4, Article 11 (December 2017), 26 pages.
 
 4. Kamel Abdelouahab and Maxime Pelcat and Jocelyn Serot and Cedric Bourrasset and Jean-Charles Quinton and François Berry "Hardware Automated Dataflow Deployment of CNNs" (2017) arXiv.
 
